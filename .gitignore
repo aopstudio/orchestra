@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+coverage/
+playwright-report/
+test-results/
+
+# 会话/运行延续数据（不入库）
+.omo/
+
+# 本地环境
+.env
+.env.*
+!.env.example
