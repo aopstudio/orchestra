@@ -42,10 +42,12 @@ export function createRoom(
         bpm: beatClock.bpm,
         bpi: beatClock.bpi,
       })
+      // 双向广播: 新成员得知所有已有成员(回填名单),已有成员得知新成员。
+      // 缺少回填会让后来者永远看不到先来的玩家。
       for (const m of members.values()) {
-        if (m.id !== member.id) {
-          m.send({ type: 'peerJoined', id: member.id, name: member.name })
-        }
+        if (m.id === member.id) continue
+        member.send({ type: 'peerJoined', id: m.id, name: m.name })
+        m.send({ type: 'peerJoined', id: member.id, name: member.name })
       }
     },
 

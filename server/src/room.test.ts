@@ -29,6 +29,8 @@ describe('createRoom', () => {
     expect(a.sent[0]).toEqual({ type: 'welcome', id: 'a', name: 'Alice', roomCode: 'TESTRO', bpm: 120, bpi: 4 })
     expect(b.sent[0]).toEqual({ type: 'welcome', id: 'b', name: 'Bob', roomCode: 'TESTRO', bpm: 120, bpi: 4 })
     expect(a.sent[1]).toEqual({ type: 'peerJoined', id: 'b', name: 'Bob' })
+    // 回填: 后加入者必须得知先加入的成员
+    expect(b.sent[1]).toEqual({ type: 'peerJoined', id: 'a', name: 'Alice' })
   })
 
   it('size() reflects the number of joined members', () => {

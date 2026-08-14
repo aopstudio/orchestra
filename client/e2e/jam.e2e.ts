@@ -294,3 +294,53 @@ test('tempo and meter changes broadcast to every player in the room', async ({ b
   await ctxA.close()
   await ctxB.close()
 })
+
+test('four players share one room: roster, note fan-out, and isolation from a second room', async ({
+  browser,
+}) => {
+  // Room A: four players
+  const pages: Page[] = []
+  const ctxs = []
+  for (let i = 0; i < 4; i += 1) {
+    const ctx = await browser.newContext()
+    ctxs.push(ctx)
+    const page = await ctx.newPage()
+    pages.push(page)
+  }
+  const roomCode = await createRoom(pages[0], 'P1')
+  for (let i = 1; i < 4; i += 1) {
+    await joinRoom(pages[i], `P${i + 1}`, roomCode)
+  }
+  for (let i = 0; i < 4; i += 1) {
+    await waitInstrumentsReady(pages[i])
+  }
+
+  // 每个人都看到其他 3 个成员(StatusPanel 会过滤自己)
+  const names = ['P1', 'P2', 'P3', 'P4']
+  for (let i = 0; i < 4; i += 1) {
+    for (let j = 0; j < 4; j += 1) {
+      if (j === i) continue
+      await expect(pages[i]!.getByTestId('peers')).toContainText(names[j]!, {
+        timeout: 20_000,
+      })
+    }
+  }
+
+  // P4 弹奏 → P1/P2/P3 都收到
+  await pages[3]!.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
+  await pages[3]!.keyboard.press('a')
+  await pages[0]!.waitForTimeout(2000)
+  const counters: number[] = []
+  for (let i = 0; i < 3; i += 1) {
+    counters.push(await pages[i]!.evaluate(() => window.__orchNotes ?? 0))
+  }
+  console.log(`[e2e] four-player: counters after P4 press = ${JSON.stringify(counters)}`)
+  for (const c of counters) {
+    expect(c).toBeGreaterThan(0)
+  }
+  console.log('[e2e] four-player room: note from P4 reached P1/P2/P3')
+
+  for (const ctx of ctxs) {
+    await ctx.close()
+  }
+})

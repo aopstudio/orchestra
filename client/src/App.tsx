@@ -188,13 +188,19 @@ export default function App() {
   /** Clock anchor on the audio timeline: server beat at a local audio time. */
   /** Clock anchor: server beat at a LOCAL monotonic timestamp (performance.now). */
   const beatAnchorRef = useRef<{ beat: number; localTime: number; tempo: number } | null>(null)
-  /** Latest server beat seen on the clock broadcast. */
-  const latestBeatRef = useRef(0)
+  /** Latest server beat seen on the clock broadcast (null until the first one). */
+  const latestBeatRef = useRef<number | null>(null)
   const selectedPartRef = useRef<SongPart | null>(null)
   const judgeRef = useRef<Judge | null>(null)
   const judgeEnabledRef = useRef(true)
   /** Server beat at which the countdown ends and the song actually starts. */
   const countdownUntilRef = useRef<number | null>(null)
+  /**
+   * 声部武装发生在第一条时钟广播之前时,倒计时锚点无法计算(latestBeat 未知,
+   * 用 0 拍当锚点会让倒计时立刻过期、整首歌被跳过)。此时挂起武装,
+   * 等 onClock 拿到真实节拍后再启动倒计时。
+   */
+  const pendingArmRef = useRef(false)
   /** Monotonic id for the transient judgment badge (retriggers its animation). */
   const badgeSeqRef = useRef(0)
 
@@ -353,7 +359,7 @@ export default function App() {
   // (they must not be recreated per render/reconnect). This is the documented
   // React lazy-ref-init pattern; react-hooks/refs flags it conservatively, and
   // the whole room pipeline depends on the single-instance behaviour.
-  /* eslint-disable react-hooks/refs -- intentional once-created handler ref */
+  /* eslint-disable react-hooks/refs, react-hooks/purity -- intentional once-created handler ref */
   if (handlersRef.current === null) {
     handlersRef.current = {
       onWelcome: (msg) => {
@@ -447,6 +453,11 @@ export default function App() {
         // songBeat is the server beat relative to when the part was armed, so
         // every player's guide sits on the same absolute grid.
         const part = selectedPartRef.current
+        // 若武装发生在第一条时钟广播之前(latestBeat 未知),现在补启动倒计时
+        if (pendingArmRef.current && latestBeatRef.current !== null) {
+          pendingArmRef.current = false
+          startCountdown()
+        }
         // Countdown: if a start was requested, show the preparation beats and
         // only begin the song (anchor songStartBeat) once the countdown elapses.
         const countdownUntil = countdownUntilRef.current
@@ -538,7 +549,7 @@ export default function App() {
       },
     }
   }
-  /* eslint-enable react-hooks/refs */
+  /* eslint-enable react-hooks/refs, react-hooks/purity */
 
   // --- user interactions -----------------------------------------------------
 
@@ -651,7 +662,7 @@ export default function App() {
       selectedPartRef.current !== null &&
       songStartBeatRef.current !== null
     ) {
-      const songBeat = latestBeatRef.current - songStartBeatRef.current
+      const songBeat = (latestBeatRef.current ?? 0) - songStartBeatRef.current
       const result = judge.press(note, songBeat)
       if (result.kind === 'hit' || result.kind === 'mistake') {
         setJudgeStats(judge.stats())
@@ -776,6 +787,20 @@ export default function App() {
   }
 
   /** Arm a part: start a COUNTDOWN, then the song begins (t=0 = armBeat + countdown). */
+  /**
+   * 启动倒计时: 锚定到最近的小节边界(≥ COUNTDOWN_BEATS 拍后),让歌曲第一拍
+   * 落在节拍器重音上。必须在 latestBeatRef 已知(至少收到一条时钟广播)后调用。
+   */
+  const startCountdown = (): void => {
+    const now = latestBeatRef.current
+    if (now === null) return
+    const until = nextBarBoundary(now, bpiRef.current, COUNTDOWN_BEATS)
+    countdownUntilRef.current = until
+    const total = Math.ceil(until - now)
+    setCountdownBeatsLeft(total)
+    setPrepBeats(total)
+  }
+
   const handleSelectPart = (partId: string): void => {
     if (selectedSong === null) return
     const part = selectedSong.parts.find((p) => p.id === partId) ?? null
@@ -784,13 +809,15 @@ export default function App() {
     selectedPartRef.current = part
     // Swapping parts mid-song keeps the current position; the first arm (or a
     // restart) starts a countdown ending on the NEXT BAR BOUNDARY so the song's
-    // first beat lands on the metronome accent.
+    // first beat lands on the metronome accent. 若时钟网格尚不可知(latestBeat
+    // 为 null,首条时钟广播未到),挂起武装,onClock 到达后补启动倒计时——
+    // 否则用 0 拍当锚点会让倒计时立即过期、整首歌被跳过。
     if (songStartBeatRef.current === null) {
-      const until = nextBarBoundary(latestBeatRef.current, bpiRef.current, COUNTDOWN_BEATS)
-      countdownUntilRef.current = until
-      const total = Math.ceil(until - latestBeatRef.current)
-      setCountdownBeatsLeft(total)
-      setPrepBeats(total)
+      if (latestBeatRef.current === null) {
+        pendingArmRef.current = true
+      } else {
+        startCountdown()
+      }
     }
     judgeRef.current = new Judge(part.notes, { enabled: judgeEnabledRef.current })
     setJudgeStats(judgeRef.current.stats())
@@ -801,11 +828,11 @@ export default function App() {
   const handleRestart = (): void => {
     if (selectedPartRef.current === null) return
     songStartBeatRef.current = null
-    const until = nextBarBoundary(latestBeatRef.current, bpiRef.current, COUNTDOWN_BEATS)
-    countdownUntilRef.current = until
-    const total = Math.ceil(until - latestBeatRef.current)
-    setCountdownBeatsLeft(total)
-    setPrepBeats(total)
+    if (latestBeatRef.current === null) {
+      pendingArmRef.current = true
+    } else {
+      startCountdown()
+    }
     setGuideCurrent(new Set())
     setGuideUpcoming(new Set())
     setGuideProgress(0)
