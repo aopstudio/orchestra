@@ -492,3 +492,61 @@ test('first-run tutorial walks through all steps and closes', async ({ browser }
   await expect(page.getByTestId('tutorial-modal')).toBeVisible()
   await ctx.close()
 })
+
+test('cross-city simulation: 60ms one-way relay still syncs the clock and relays notes', async ({
+  browser,
+}) => {
+  // 通过 60ms 延迟代理连接(模拟跨城),验证事件架构对 RTT 不敏感
+  const ctxA = await browser.newContext()
+  const pageA = await ctxA.newPage()
+  await blockCdn(pageA)
+  await pageA.goto(E2E_URL)
+  if ((await pageA.getByTestId('tutorial-modal').count()) > 0) {
+    await pageA.getByTestId('tut-close').click()
+  }
+  await pageA.locator('label.field', { hasText: 'Server' }).locator('input').fill('ws://localhost:8082')
+  await pageA.getByTestId('name-input').fill('ProxyA')
+  await pageA.getByTestId('create-btn').click()
+  await expect(pageA.getByTestId('conn-badge')).toHaveText('CONNECTED', { timeout: 20_000 })
+
+  // 时钟同步在 ~120ms RTT 下仍须完成(≥1 次 sync)
+  await expect
+    .poll(() => pageA.getByTestId('readout-offset').locator('.readout-sub').textContent(), {
+      timeout: 25_000,
+    })
+    .toMatch(/· \d+ sync/)
+
+  const ctxB = await browser.newContext()
+  const pageB = await ctxB.newPage()
+  await blockCdn(pageB)
+  await pageB.goto(E2E_URL)
+  if ((await pageB.getByTestId('tutorial-modal').count()) > 0) {
+    await pageB.getByTestId('tut-close').click()
+  }
+  await pageB.locator('label.field', { hasText: 'Server' }).locator('input').fill('ws://localhost:8082')
+  const roomCode = await pageA.getByTestId('room-code').locator('b').textContent()
+  await pageB.getByTestId('name-input').fill('ProxyB')
+  await pageB.getByTestId('room-code-input').fill(roomCode ?? '')
+  await pageB.getByTestId('join-btn').click()
+  await expect(pageB.getByTestId('conn-badge')).toHaveText('CONNECTED', { timeout: 20_000 })
+
+  // 音符经 60ms×2 延迟仍能到达(中继只影响"何时听说",不影响"落在哪一拍")
+  await waitInstrumentsReady(pageB)
+  await waitInstrumentsReady(pageA)
+  await pageB.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
+  await pageB.keyboard.press('a')
+  await pageA.waitForFunction(
+    (before) => (window.__orchNotes ?? 0) > before,
+    await pageA.evaluate(() => window.__orchNotes ?? 0),
+    { timeout: 15_000 },
+  )
+  console.log('[e2e] cross-city relay: note arrived through 60ms one-way proxy')
+  const rtt = await pageA
+    .getByTestId('readout-offset')
+    .locator('.readout-sub')
+    .textContent()
+  console.log(`[e2e] cross-city relay: sync RTT ~ ${rtt?.trim()}`)
+
+  await ctxA.close()
+  await ctxB.close()
+})

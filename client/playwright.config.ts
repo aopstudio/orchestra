@@ -48,5 +48,12 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,
     },
+    {
+      // 跨城模拟中继: 单程 60ms 延迟,用于验证事件架构对 RTT 不敏感
+      command: 'PORT=8082 TARGET=ws://localhost:8081 DELAY_MS=60 node e2e/relay.cjs',
+      port: 8082,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+    },
   ],
 })

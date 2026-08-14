@@ -367,7 +367,7 @@ export default function App() {
     if (syncingRef.current) return
     syncingRef.current = true
     try {
-      const est = await estimateOffset(sendSyncOnce, { samples: 5, maxDelayMs: 100 })
+      const est = await estimateOffset(sendSyncOnce, { samples: 5, maxDelayMs: 400 })
       offsetRef.current = est.offset
       setClockInfo((prev) => ({
         offset: est.offset,
