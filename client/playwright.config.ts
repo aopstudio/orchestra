@@ -1,0 +1,51 @@
+import { defineConfig } from '@playwright/test'
+
+/**
+ * Phase 0 two-browser jam E2E.
+ *
+ * Boots both backends before the suite:
+ *   1. the ws room server (npm run start -w @orchestra/server)
+ *   2. the Vite dev server (port 5173, proxies /ws -> ws://localhost:8080)
+ *
+ * The ws server runs on port 8081 for the E2E run, NOT the default 8080:
+ * this machine has an unrelated daemon (TeleAgent scheduler) permanently
+ * listening on 8080, which would be "reused" by Playwright's port check and
+ * never speak the orchestra protocol — the client would hang on CONNECTING.
+ * The test therefore points the app at ws://localhost:8081 directly (the
+ * WebSocket protocol has no CORS/origin gate, so bypassing the Vite /ws
+ * proxy is fine). The default `npm run dev:server` still uses 8080.
+ *
+ * Tests are timing/audio sensitive, so they run serially (fullyParallel: false).
+ */
+export default defineConfig({
+  testDir: './e2e',
+  // .e2e.ts (not .spec.ts/.test.ts) so Vitest's default include never collects the Playwright suite.
+  testMatch: /.*\.e2e\.ts/,
+  timeout: 30_000,
+  fullyParallel: false,
+  workers: 1,
+  use: {
+    baseURL: 'http://localhost:5173',
+    // Only the full chromium build is installed (no headless shell); channel
+    // 'chromium' opts into the new headless mode running that build.
+    channel: 'chromium',
+    launchOptions: {
+      args: ['--autoplay-policy=no-user-gesture-required'],
+    },
+  },
+  webServer: [
+    {
+      command: 'PORT=8081 npm run start -w @orchestra/server',
+      cwd: '..',
+      port: 8081,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+    },
+    {
+      command: 'npm run dev',
+      port: 5173,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+    },
+  ],
+})
