@@ -50,6 +50,8 @@ export class WsClient {
   private reconnectFlag = false
   /** 入房意图: 连接建立(含重连)后自动发送。 */
   private intent: JoinIntent | null = null
+  /** 当前所在房间码(welcome 下发)。重连时凭它回到原房间,而不是重新建房。 */
+  private currentRoomCode: string | null = null
 
   constructor(
     private readonly url: string,
@@ -150,6 +152,11 @@ export class WsClient {
     ws.onopen = () => {
       this.reconnectAttempts = 0
       if (this.intent !== null) {
+        // 断线重连: 已加入过房间则凭原房间码重新加入,绝不新建房间
+        // (否则房主 socket 一抖就会"被踢"进一个全新的空房间)
+        if (this.currentRoomCode !== null && this.intent.kind === 'create') {
+          this.intent = { kind: 'join', name: this.intent.name, roomCode: this.currentRoomCode }
+        }
         this.sendIntent(this.intent)
       }
     }
@@ -203,10 +210,18 @@ export class WsClient {
     // `parsed` is a JSON object whose `type` we dispatch on; each case is
     // narrowed to its ServerMsg variant by the protocol contract.
     switch (parsed.type) {
-      case 'welcome':
-        this.handlers.onWelcome(parsed as WelcomeMsg)
+      case 'welcome': {
+        const welcome = parsed as WelcomeMsg
+        this.currentRoomCode = welcome.roomCode
+        // 创建成功后意图升级为"凭码加入": 之后任何断线重连都回原房间
+        if (this.intent !== null && this.intent.kind === 'create') {
+          this.intent = { kind: 'join', name: this.intent.name, roomCode: welcome.roomCode }
+        }
+        this.handlers.onWelcome(welcome)
         break
+      }
       case 'roomError':
+        this.currentRoomCode = null
         this.handlers.onRoomError(parsed as RoomErrorMsg)
         break
       case 'peerJoined':

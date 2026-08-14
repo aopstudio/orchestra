@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { createServer as createHttpsServer } from 'node:https'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import { WebSocketServer, type RawData } from 'ws'
+import { WebSocket, WebSocketServer, type RawData } from 'ws'
 import type { ClientMsg, ServerMsg } from '@orchestra/shared'
 import { isValidSong } from '@orchestra/shared'
 import { createRoomManager, type RoomEntry } from './roomManager'
@@ -113,6 +113,14 @@ const httpServer = tls
 
 const wss = new WebSocketServer({ server: httpServer })
 
+/** 心跳周期: 防 NAT/路由器静默断开连接,并清理死连接(触发空房回收)。
+ *  每周期把 isAlive 置 false,下个周期仍未 pong 回来即 terminate,
+ *  因此死连接的清理延迟为一个周期(30s)。 */
+const HEARTBEAT_INTERVAL_MS = 30_000
+
+/** ws 连接上附加的心跳标记。 */
+type AliveSocket = WebSocket & { isAlive?: boolean }
+
 /** 解析客户端消息缓冲;解析失败返回 null(记录日志,不中断连接) */
 function parseClientMsg(raw: RawData): ClientMsg | null {
   let msg: ClientMsg
@@ -125,7 +133,12 @@ function parseClientMsg(raw: RawData): ClientMsg | null {
   return msg
 }
 
-wss.on('connection', (ws) => {
+wss.on('connection', (rawWs) => {
+  const ws = rawWs as AliveSocket
+  ws.isAlive = true
+  ws.on('pong', () => {
+    ws.isAlive = true
+  })
   const member: RoomMember = {
     id: randomUUID(),
     name: '',
@@ -199,6 +212,21 @@ wss.on('connection', (ws) => {
 setInterval(() => {
   manager.forEachRoom((entry) => entry.room.broadcastClock())
 }, 500)
+
+// 心跳: 定期 ping,防 NAT 静默断连;超时未 pong 的连接 terminate,
+// 触发 close → room.leave → 空房回收。间隔必须小于常见 NAT 空闲超时。
+setInterval(() => {
+  for (const rawWs of wss.clients) {
+    const ws = rawWs as AliveSocket
+    if (ws.isAlive === false) {
+      ws.terminate()
+      continue
+    }
+    ws.isAlive = false
+    ws.ping()
+  }
+}, HEARTBEAT_INTERVAL_MS)
+
 
 httpServer.listen(PORT, HOST, () => {
   console.log(`orchestra server listening on ${tls ? 'wss' : 'ws'}://${HOST}:${PORT}`)
