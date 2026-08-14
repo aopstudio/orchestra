@@ -15,7 +15,7 @@ test('note 消息形状(携带乐器)', () => {
     type: 'note'
     note: number
     velocity: number
-    instrument: 'piano' | 'bass' | 'drums'
+    instrument: 'piano' | 'bass' | 'drums' | 'trumpet' | 'violin'
   }>()
 })
 
@@ -44,7 +44,7 @@ test('note 广播形状(带服务器时间戳与乐器)', () => {
     from: string
     note: number
     velocity: number
-    instrument: 'piano' | 'bass' | 'drums'
+    instrument: 'piano' | 'bass' | 'drums' | 'trumpet' | 'violin'
     serverTime: number
   }>()
 })

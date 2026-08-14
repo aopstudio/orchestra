@@ -9,11 +9,13 @@
 
 /**
  * 乐器标识。音符事件携带它,让远端按发送者的乐器回放声音:
- * - piano: 采样钢琴 / 振荡器三角波
- * - bass:  采样电贝斯 / 振荡器锯齿波+低通
- * - drums: TR-808 采样(GM 鼓图 35–51) / 合成鼓
+ * - piano:   采样钢琴 / 振荡器三角波
+ * - bass:    采样电贝斯 / 振荡器锯齿波+低通
+ * - drums:   TR-808 采样(GM 鼓图 35–51) / 合成鼓
+ * - trumpet: 采样小号 / 振荡器方波+包络(铜管编制)
+ * - violin:  采样小提琴 / 振荡器锯齿波+颤音(弦乐编制)
  */
-export type InstrumentId = 'piano' | 'bass' | 'drums'
+export type InstrumentId = 'piano' | 'bass' | 'drums' | 'trumpet' | 'violin'
 
 /** 客户端 → 服务器 */
 export type ClientMsg =

@@ -11,6 +11,8 @@ const INSTRUMENTS: ReadonlyArray<{ id: InstrumentId; label: string }> = [
   { id: 'drums', label: '鼓' },
   { id: 'bass', label: '贝斯' },
   { id: 'piano', label: '键盘' },
+  { id: 'trumpet', label: '小号' },
+  { id: 'violin', label: '提琴' },
 ]
 
 export interface MixerPanelProps {

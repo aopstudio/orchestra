@@ -509,6 +509,113 @@ const BLUES_12BAR: Song = {
   ],
 }
 
+/**
+ * 号角合奏(原创铜管编制: 小号×2 + 大号)
+ * C 大调,4/4 拍,100 BPM。英雄式号角动机,两声部三度叠置 + 根音低音。
+ */
+const FANFARE: Song = {
+  id: 'fanfare',
+  title: '号角合奏',
+  bpm: 100,
+  bpi: 4,
+  parts: [
+    {
+      id: 't1',
+      name: '小号 1',
+      instrument: 'trumpet',
+      notes: [
+        { note: 60, beat: 0 }, { note: 67, beat: 1 }, { note: 72, beat: 2 }, { note: 76, beat: 3 },
+        { note: 72, beat: 4, duration: 2 }, { note: 67, beat: 6 }, { note: 60, beat: 7 },
+        { note: 60, beat: 8 }, { note: 67, beat: 9 }, { note: 72, beat: 10 }, { note: 76, beat: 11 },
+        { note: 79, beat: 12, duration: 2 }, { note: 76, beat: 14 }, { note: 72, beat: 15 },
+        { note: 67, beat: 16, duration: 2 }, { note: 72, beat: 18 }, { note: 67, beat: 19 },
+        { note: 60, beat: 20, duration: 4 },
+      ],
+    },
+    {
+      id: 't2',
+      name: '小号 2',
+      instrument: 'trumpet',
+      notes: [
+        { note: 64, beat: 0 }, { note: 64, beat: 1 }, { note: 67, beat: 2 }, { note: 72, beat: 3 },
+        { note: 67, beat: 4, duration: 2 }, { note: 64, beat: 6 }, { note: 64, beat: 7 },
+        { note: 64, beat: 8 }, { note: 64, beat: 9 }, { note: 67, beat: 10 }, { note: 72, beat: 11 },
+        { note: 76, beat: 12, duration: 2 }, { note: 72, beat: 14 }, { note: 67, beat: 15 },
+        { note: 64, beat: 16, duration: 2 }, { note: 67, beat: 18 }, { note: 64, beat: 19 },
+        { note: 60, beat: 20, duration: 4 },
+      ],
+    },
+    {
+      id: 'tuba',
+      name: '大号',
+      instrument: 'bass',
+      notes: [
+        { note: 48, beat: 0, duration: 4 },
+        { note: 55, beat: 4, duration: 4 },
+        { note: 48, beat: 8, duration: 4 },
+        { note: 53, beat: 12, duration: 4 },
+        { note: 48, beat: 16, duration: 4 },
+        { note: 55, beat: 20, duration: 4 },
+      ],
+    },
+  ],
+}
+
+/**
+ * 弦乐小夜曲(原创弦乐编制: 小提琴×2 + 低音)
+ * C 大调,4/4 拍,90 BPM。抒情旋律 + 三度叠置和声 + 根音低音。
+ */
+const SERENADE: Song = {
+  id: 'serenade',
+  title: '弦乐小夜曲',
+  bpm: 90,
+  bpi: 4,
+  parts: [
+    {
+      id: 'v1',
+      name: '小提琴 1',
+      instrument: 'violin',
+      notes: [
+        { note: 67, beat: 0 }, { note: 69, beat: 1 }, { note: 72, beat: 2, duration: 2 },
+        { note: 74, beat: 4 }, { note: 72, beat: 5 }, { note: 69, beat: 6, duration: 2 },
+        { note: 67, beat: 8 }, { note: 69, beat: 9 }, { note: 72, beat: 10, duration: 2 },
+        { note: 74, beat: 12, duration: 2 }, { note: 76, beat: 14 }, { note: 74, beat: 15 },
+        { note: 72, beat: 16, duration: 2 }, { note: 69, beat: 18 }, { note: 67, beat: 19 },
+        { note: 69, beat: 20, duration: 2 }, { note: 67, beat: 22 }, { note: 65, beat: 23 },
+        { note: 64, beat: 24, duration: 4 },
+      ],
+    },
+    {
+      id: 'v2',
+      name: '小提琴 2',
+      instrument: 'violin',
+      notes: [
+        { note: 64, beat: 0 }, { note: 64, beat: 1 }, { note: 67, beat: 2, duration: 2 },
+        { note: 71, beat: 4 }, { note: 69, beat: 5 }, { note: 64, beat: 6, duration: 2 },
+        { note: 64, beat: 8 }, { note: 64, beat: 9 }, { note: 67, beat: 10, duration: 2 },
+        { note: 71, beat: 12, duration: 2 }, { note: 72, beat: 14 }, { note: 71, beat: 15 },
+        { note: 69, beat: 16, duration: 2 }, { note: 65, beat: 18 }, { note: 64, beat: 19 },
+        { note: 65, beat: 20, duration: 2 }, { note: 64, beat: 22 }, { note: 62, beat: 23 },
+        { note: 60, beat: 24, duration: 4 },
+      ],
+    },
+    {
+      id: 'cello',
+      name: '低音',
+      instrument: 'bass',
+      notes: [
+        { note: 48, beat: 0, duration: 4 },
+        { note: 53, beat: 4, duration: 4 },
+        { note: 48, beat: 8, duration: 4 },
+        { note: 53, beat: 12, duration: 4 },
+        { note: 48, beat: 16, duration: 4 },
+        { note: 53, beat: 20, duration: 4 },
+        { note: 48, beat: 24, duration: 4 },
+      ],
+    },
+  ],
+}
+
 /** 内置曲库(按 id 索引) */
 export const SONGS: Song[] = [
   ROCK_GROOVE,
@@ -518,6 +625,8 @@ export const SONGS: Song[] = [
   HAPPY_BIRTHDAY,
   FRERE_JACQUES,
   ROW_BOAT,
+  FANFARE,
+  SERENADE,
 ]
 
 export function getSong(id: string): Song | undefined {

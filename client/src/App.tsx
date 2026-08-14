@@ -134,9 +134,15 @@ export default function App() {
         string,
         number
       >
-      return { piano: saved.piano ?? 1, bass: saved.bass ?? 1, drums: saved.drums ?? 1 }
+      return {
+        piano: saved.piano ?? 1,
+        bass: saved.bass ?? 1,
+        drums: saved.drums ?? 1,
+        trumpet: saved.trumpet ?? 1,
+        violin: saved.violin ?? 1,
+      }
     } catch {
-      return { piano: 1, bass: 1, drums: 1 }
+      return { piano: 1, bass: 1, drums: 1, trumpet: 1, violin: 1 }
     }
   })
   const mixVolumesRef = useRef(mixVolumes)

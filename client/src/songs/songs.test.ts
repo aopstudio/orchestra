@@ -5,7 +5,7 @@
 import { describe, expect, it } from 'vitest'
 import { SONGS, type Song, type SongPart } from './songs'
 
-const VALID_INSTRUMENTS = new Set(['piano', 'bass', 'drums'])
+const VALID_INSTRUMENTS = new Set(['piano', 'bass', 'drums', 'trumpet', 'violin'])
 
 /** 鼓件 GM 范围(35–51) */
 const GM_DRUM_LOW = 35

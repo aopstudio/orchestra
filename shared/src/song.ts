@@ -47,7 +47,8 @@ export function isValidSong(value: unknown): value is Song {
   for (const part of v.parts) {
     const p = part as Partial<SongPart>
     if (typeof p.id !== 'string' || typeof p.name !== 'string') return false
-    if (p.instrument !== 'piano' && p.instrument !== 'bass' && p.instrument !== 'drums') {
+    const allowed = ['piano', 'bass', 'drums', 'trumpet', 'violin'] as const
+    if (!allowed.includes(p.instrument as (typeof allowed)[number])) {
       return false
     }
     if (!Array.isArray(p.notes)) return false

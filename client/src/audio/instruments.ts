@@ -110,14 +110,16 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
     piano: ctx.createGain(),
     bass: ctx.createGain(),
     drums: ctx.createGain(),
+    trumpet: ctx.createGain(),
+    violin: ctx.createGain(),
   }
   for (const bus of Object.values(buses)) {
     bus.gain.value = 1
     bus.connect(master)
   }
 
-  // 按需并行加载三个采样乐器;任一失败独立降级,不影响其他。
-  const [piano, bass, drums] = await Promise.all([
+  // 按需并行加载五个采样乐器;任一失败独立降级,不影响其他。
+  const [piano, bass, drums, trumpet, violin] = await Promise.all([
     loadSoundfont(ctx, 'acoustic_grand_piano', buses.piano),
     loadSoundfont(ctx, 'electric_bass_finger', buses.bass),
     (async () => {
@@ -131,6 +133,8 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
       }
       return null
     })(),
+    loadSoundfont(ctx, 'muted_trumpet', buses.trumpet),
+    loadSoundfont(ctx, 'violin', buses.violin),
   ])
 
   type SoundfontInstance = ReturnType<typeof Soundfont>
@@ -162,7 +166,14 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
         fallbackDrum(ctx, note, velocity, time, bus)
         return
       }
-      const sampled = instrument === 'bass' ? bass : piano
+      const sampled =
+        instrument === 'bass'
+          ? bass
+          : instrument === 'trumpet'
+            ? trumpet
+            : instrument === 'violin'
+              ? violin
+              : piano
       if (sampled !== null) {
         try {
           startSampled(sampled, note, velocity, time)
@@ -173,6 +184,10 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
       }
       if (instrument === 'bass') {
         fallbackBass(ctx, note, velocity, time, bus)
+      } else if (instrument === 'trumpet') {
+        fallbackTrumpet(ctx, note, velocity, time, bus)
+      } else if (instrument === 'violin') {
+        fallbackViolin(ctx, note, velocity, time, bus)
       } else {
         fallbackPiano(ctx, note, velocity, time, bus)
       }
@@ -293,7 +308,13 @@ function fallbackPiano(ctx: AudioContext, note: number, velocity: number, at: nu
 }
 
 /** 合成贝斯: 锯齿波 + 低通滤波 + 短时值,模拟电贝斯拨弦。 */
-function fallbackBass(ctx: AudioContext, note: number, velocity: number, at: number, out: AudioNode): void {
+function fallbackBass(
+  ctx: AudioContext,
+  note: number,
+  velocity: number,
+  at: number,
+  out: AudioNode,
+): void {
   const vel = velocity / 127
   const freq = midiToFrequency(note)
   const t0 = Math.max(at, ctx.currentTime)
@@ -314,6 +335,74 @@ function fallbackBass(ctx: AudioContext, note: number, velocity: number, at: num
   gain.connect(out)
   osc.start(t0)
   osc.stop(t0 + 0.65)
+}
+
+/** 合成小号: 方波 + 带通 + 起音包络,明亮而有"号角感"。 */
+function fallbackTrumpet(
+  ctx: AudioContext,
+  note: number,
+  velocity: number,
+  at: number,
+  out: AudioNode,
+): void {
+  const vel = velocity / 127
+  const freq = midiToFrequency(note)
+  const t0 = Math.max(at, ctx.currentTime)
+  if (ctx.state === 'closed') return
+  const osc = ctx.createOscillator()
+  const filter = ctx.createBiquadFilter()
+  const gain = ctx.createGain()
+  osc.type = 'square'
+  osc.frequency.setValueAtTime(freq, t0)
+  filter.type = 'bandpass'
+  filter.frequency.setValueAtTime(freq * 2, t0)
+  filter.Q.value = 1.5
+  gain.gain.setValueAtTime(0, t0)
+  gain.gain.linearRampToValueAtTime(0.28 * vel, t0 + 0.03)
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5)
+  osc.connect(filter)
+  filter.connect(gain)
+  gain.connect(out)
+  osc.start(t0)
+  osc.stop(t0 + 0.55)
+}
+
+/** 合成小提琴: 锯齿波 + 轻微颤音(LFO 调制频率),持续而温暖。 */
+function fallbackViolin(
+  ctx: AudioContext,
+  note: number,
+  velocity: number,
+  at: number,
+  out: AudioNode,
+): void {
+  const vel = velocity / 127
+  const freq = midiToFrequency(note)
+  const t0 = Math.max(at, ctx.currentTime)
+  if (ctx.state === 'closed') return
+  const osc = ctx.createOscillator()
+  const lfo = ctx.createOscillator()
+  const lfoGain = ctx.createGain()
+  const filter = ctx.createBiquadFilter()
+  const gain = ctx.createGain()
+  osc.type = 'sawtooth'
+  osc.frequency.setValueAtTime(freq, t0)
+  // 颤音: 5Hz 的 LFO 把频率摆动 ±6Hz
+  lfo.frequency.setValueAtTime(5, t0)
+  lfoGain.gain.setValueAtTime(6, t0)
+  lfo.connect(lfoGain)
+  lfoGain.connect(osc.frequency)
+  filter.type = 'lowpass'
+  filter.frequency.setValueAtTime(freq * 3, t0)
+  gain.gain.setValueAtTime(0, t0)
+  gain.gain.linearRampToValueAtTime(0.22 * vel, t0 + 0.08)
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.2)
+  osc.connect(filter)
+  filter.connect(gain)
+  gain.connect(out)
+  osc.start(t0)
+  lfo.start(t0)
+  osc.stop(t0 + 1.3)
+  lfo.stop(t0 + 1.3)
 }
 
 function fallbackDrum(
