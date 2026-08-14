@@ -21,6 +21,7 @@ type TempoMsg = Extract<ServerMsg, { type: 'tempo' }>
 type BpiMsg = Extract<ServerMsg, { type: 'bpi' }>
 type SyncAckMsg = Extract<ServerMsg, { type: 'syncAck' }>
 type SongStartMsg = Extract<ServerMsg, { type: 'songStart' }>
+type JamStartMsg = Extract<ServerMsg, { type: 'jamStart' }>
 
 /** 加入房间的意图: 创建新房间或凭码加入已有房间。断线重连后按此意图重新加入。 */
 type JoinIntent = { kind: 'create'; name: string } | { kind: 'join'; name: string; roomCode: string }
@@ -38,6 +39,7 @@ export interface WsHandlers {
   onBpi(msg: BpiMsg): void
   onSyncAck(msg: SyncAckMsg): void
   onSongStart(msg: SongStartMsg): void
+  onJamStart(msg: JamStartMsg): void
 }
 
 const MAX_RECONNECT_DELAY_MS = 10_000
@@ -111,6 +113,11 @@ export class WsClient {
   /** 请求房间同步开始(服务器广播统一的开始边界拍)。 */
   sendStartSong(): void {
     this.send({ type: 'startSong' })
+  }
+
+  /** 请求自由合奏同步起奏(bars 预备小节后,pickup 决定弱起或小节开始)。 */
+  sendStartJam(bars: number, pickup: boolean): void {
+    this.send({ type: 'startJam', bars, pickup })
   }
 
   /** Stops reconnecting and closes the socket. */
@@ -250,6 +257,9 @@ export class WsClient {
         break
       case 'songStart':
         this.handlers.onSongStart(parsed as SongStartMsg)
+        break
+      case 'jamStart':
+        this.handlers.onJamStart(parsed as JamStartMsg)
         break
       default:
         // Unknown message type: ignore per protocol.

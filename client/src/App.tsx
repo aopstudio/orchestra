@@ -44,6 +44,7 @@ import MixerPanel from './ui/MixerPanel'
 import InstrumentPicker from './ui/InstrumentPicker'
 import LinkUpPanel from './ui/LinkUpPanel'
 import TempoPanel from './ui/TempoPanel'
+import JamSyncPanel from './ui/JamSyncPanel'
 import SongPicker from './ui/SongPicker'
 import JudgeBadge, { type JudgeBadgeData } from './ui/JudgeBadge'
 import { nextBarBoundary } from './guide/barBoundary'
@@ -183,6 +184,22 @@ export default function App() {
   /** 歌曲当前位置(拍,相对歌曲起点)——驱动谱面跟随高亮。 */
   const [songBeatState, setSongBeatState] = useState<number | null>(null)
 
+  // --- 自由合奏同步起奏 ---
+  /** 服务器广播的起奏目标(untilBeat 到达即 GO)。 */
+  const [jamCountdown, setJamCountdown] = useState<{
+    untilBeat: number
+    bpi: number
+    pickup: boolean
+  } | null>(null)
+  /** 剩余拍数(屏上倒计时读数)。 */
+  const [jamBeatsLeft, setJamBeatsLeft] = useState<number | null>(null)
+  /** 已进入合奏(倒计时结束)。 */
+  const [jamActive, setJamActive] = useState(false)
+  /** 预备小节数(1-4,发起方设置)。 */
+  const [jamBars, setJamBars] = useState(2)
+  /** 弱起(pickup)开关: false=小节开始(强拍), true=弱起(边界前一拍)。 */
+  const [jamPickup, setJamPickup] = useState(false)
+
   // --- Phase 2 song studio: recording + custom library ----------------------
   const [customSongs, setCustomSongs] = useState<Song[]>(() => loadCustomSongs())
   const [isRecording, setIsRecording] = useState(false)
@@ -235,6 +252,8 @@ export default function App() {
   const keyStateRef = useRef<KeyState>(new KeyState())
   /** 本地活动声音: `${instrument}:${note}` → 停止函数(松开时调用)。 */
   const localVoicesRef = useRef<Map<string, () => void>>(new Map())
+  /** 自由合奏起奏目标(handlers 的 onClock 读取)。 */
+  const jamUntilRef = useRef<{ untilBeat: number; bpi: number; pickup: boolean } | null>(null)
   /** MIDI 连接实例(卸载时断开)。 */
   const midiConnectionRef = useRef<MidiConnection | null>(null)
   /** MIDI notes currently held (keyboard or mouse) — dedupes noteOn across inputs. */
@@ -476,6 +495,10 @@ export default function App() {
       setGuideProgress,
       setJudgeStats,
       setRemoteNotes,
+      jamUntilRef,
+      setJamCountdown,
+      setJamBeatsLeft,
+      setJamActive,
     })
   }
   /* eslint-enable react-hooks/refs */
@@ -764,6 +787,11 @@ export default function App() {
   /** 请求房间同步开始: 所有已武装玩家在同一小节边界起奏(Phase 1 合奏)。 */
   const handleSyncStart = (): void => {
     wsRef.current?.sendStartSong()
+  }
+
+  /** 发起自由合奏同步起奏(bars 预备小节后,可选弱起)。 */
+  const handleJamStart = (): void => {
+    wsRef.current?.sendStartJam(jamBars, jamPickup)
   }
 
   /** 切换谱面显示(持久化)。 */
@@ -1186,6 +1214,18 @@ export default function App() {
             bpm={bpm}
             bpi={bpi}
             error={error}
+          />
+
+          <JamSyncPanel
+            connState={connState}
+            bars={jamBars}
+            onBarsChange={setJamBars}
+            pickup={jamPickup}
+            onPickupChange={setJamPickup}
+            onStart={handleJamStart}
+            countdown={jamCountdown}
+            beatsLeft={jamBeatsLeft}
+            active={jamActive}
           />
 
           <InstrumentPicker

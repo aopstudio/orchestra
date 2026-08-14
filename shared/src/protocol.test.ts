@@ -131,6 +131,23 @@ test('songStart 广播形状(房间同步开始)', () => {
   }>()
 })
 
+test('startJam 消息形状(自由合奏起奏)', () => {
+  expectTypeOf<Extract<ClientMsg, { type: 'startJam' }>>().toEqualTypeOf<{
+    type: 'startJam'
+    bars: number
+    pickup: boolean
+  }>()
+})
+
+test('jamStart 广播形状(自由合奏起奏)', () => {
+  expectTypeOf<Extract<ServerMsg, { type: 'jamStart' }>>().toEqualTypeOf<{
+    type: 'jamStart'
+    startBeat: number
+    bpi: number
+    pickup: boolean
+  }>()
+})
+
 test('welcome 消息形状(带房间码)', () => {
   expectTypeOf<Extract<ServerMsg, { type: 'welcome' }>>().toEqualTypeOf<{
     type: 'welcome'

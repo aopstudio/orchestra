@@ -191,6 +191,8 @@ wss.on('connection', (rawWs) => {
       room.setBpi(msg.bpi)
     } else if (msg.type === 'startSong') {
       room.startSong()
+    } else if (msg.type === 'startJam') {
+      room.startJam(msg.bars, msg.pickup)
     } else if (msg.type === 'sync') {
       room.sync(member.id, msg.t1)
     }

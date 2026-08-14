@@ -26,6 +26,7 @@ export type ClientMsg =
   | { type: 'setTempo'; bpm: number }
   | { type: 'setBpi'; bpi: number }
   | { type: 'startSong' }
+  | { type: 'startJam'; bars: number; pickup: boolean }
   | { type: 'sync'; t1: number }
 
 /** 服务器 → 客户端 */
@@ -52,6 +53,17 @@ export type ServerMsg =
       type: 'songStart'
       beat: number
       bpi: number
+    }
+  | {
+      /**
+       * 自由合奏同步起奏: 全房间在 startBeat 一起开始演奏。
+       * pickup=false → startBeat 是小节边界(强拍起);
+       * pickup=true  → startBeat 是边界前一拍(弱起,上一小节末拍起)。
+       */
+      type: 'jamStart'
+      startBeat: number
+      bpi: number
+      pickup: boolean
     }
 
 /** 服务器房间配置 */

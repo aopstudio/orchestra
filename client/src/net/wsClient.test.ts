@@ -79,6 +79,7 @@ function makeHandlers(): { handlers: WsHandlers; welcomes: unknown[] } {
     onBpi: () => {},
     onSyncAck: () => {},
     onSongStart: () => {},
+    onJamStart: () => {},
   }
   return { handlers, welcomes }
 }

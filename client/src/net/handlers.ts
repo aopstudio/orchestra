@@ -39,6 +39,8 @@ export interface HandlerDeps {
   pendingArmRef: MutableRefObject<boolean>
   pendingSyncRef: MutableRefObject<((sample: SyncSample) => void) | null>
   runSyncRef: MutableRefObject<() => Promise<void>>
+  /** 自由合奏同步起奏目标(untilBeat 到达即 GO)。 */
+  jamUntilRef: MutableRefObject<{ untilBeat: number; bpi: number; pickup: boolean } | null>
   // 首次渲染闭包安全: 以下函数只读 refs / 稳定 setter
   startAudioPipeline: (bpmValue: number) => Promise<void>
   ensureInstruments: () => Promise<Instruments | null>
@@ -60,6 +62,9 @@ export interface HandlerDeps {
   setGuideProgress: Dispatch<SetStateAction<number>>
   setJudgeStats: Dispatch<SetStateAction<{ hits: number; misses: number; mistakes: number; score: number }>>
   setRemoteNotes: Dispatch<SetStateAction<ReadonlySet<number>>>
+  setJamCountdown: Dispatch<SetStateAction<{ untilBeat: number; bpi: number; pickup: boolean } | null>>
+  setJamBeatsLeft: Dispatch<SetStateAction<number | null>>
+  setJamActive: Dispatch<SetStateAction<boolean>>
 }
 
 /**
@@ -108,6 +113,10 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
     setGuideProgress,
     setJudgeStats,
     setRemoteNotes,
+    jamUntilRef,
+    setJamCountdown,
+    setJamBeatsLeft,
+    setJamActive,
   } = deps
 
   return {
@@ -125,6 +134,11 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
       // A welcome means a fresh room session — start the peer roster over.
       setPeers([])
       setError(null)
+      // 重新加入后重置自由合奏状态
+      jamUntilRef.current = null
+      setJamCountdown(null)
+      setJamBeatsLeft(null)
+      setJamActive(false)
       void (async () => {
         try {
           await startAudioPipeline(msg.bpm)
@@ -196,6 +210,20 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
         beat: msg.beat,
         localTime: performance.now(),
         tempo: msg.tempo,
+      }
+
+      // --- 自由合奏同步起奏倒计时(与歌曲倒计时独立) ---
+      const jam = jamUntilRef.current
+      if (jam !== null) {
+        const beatsLeft = jam.untilBeat - msg.beat
+        if (beatsLeft > 0) {
+          setJamBeatsLeft(Math.ceil(beatsLeft))
+        } else {
+          jamUntilRef.current = null
+          setJamCountdown(null)
+          setJamBeatsLeft(null)
+          setJamActive(true)
+        }
       }
 
       // --- Phase 1 guide + judgment, driven by the shared server beat ---
@@ -311,6 +339,15 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
         pendingSyncRef.current = null
         resolve({ t1: msg.t1, t2: msg.t2, t3: msg.t3, t4: performance.now() })
       }
+    },
+
+    onJamStart: (msg) => {
+      // 自由合奏同步起奏: 全房间在 startBeat 一起开始。
+      // 无论谁发起,所有玩家都按服务器广播的同一目标拍倒计时。
+      jamUntilRef.current = { untilBeat: msg.startBeat, bpi: msg.bpi, pickup: msg.pickup }
+      setJamCountdown({ untilBeat: msg.startBeat, bpi: msg.bpi, pickup: msg.pickup })
+      setJamBeatsLeft(null)
+      setJamActive(false)
     },
 
     onSongStart: (msg) => {

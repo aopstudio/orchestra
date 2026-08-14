@@ -18,6 +18,11 @@ export interface Room {
   setBpi(bpi: number): void
   /** 广播同步开始: 全房间在同一个下一个小节边界开始各自的武装声部。 */
   startSong(minAheadBeats?: number): void
+  /**
+   * 自由合奏同步起奏: `bars` 预备小节后统一起奏。
+   * pickup=false 起于小节边界(强拍);pickup=true 起于边界前一拍(弱起)。
+   */
+  startJam(bars: number, pickup: boolean): void
   sync(memberId: string, t1: number): void
   broadcastClock(): void
 }
@@ -112,6 +117,19 @@ export function createRoom(
       const beat = beatClock.beatAt(serverTime)
       const boundary = nextBarBoundary(beat, beatClock.bpi, minAheadBeats)
       const msg: ServerMsg = { type: 'songStart', beat: boundary, bpi: beatClock.bpi }
+      for (const m of members.values()) {
+        m.send(msg)
+      }
+    },
+
+    startJam(bars, pickup) {
+      const serverTime = now()
+      const beat = beatClock.beatAt(serverTime)
+      const leadBeats = Math.max(1, Math.round(bars) * beatClock.bpi)
+      const boundary = nextBarBoundary(beat, beatClock.bpi, leadBeats)
+      // 小节开始: 起于边界(强拍);弱起: 起于边界前一拍(上一小节末拍)
+      const startBeat = pickup ? boundary - 1 : boundary
+      const msg: ServerMsg = { type: 'jamStart', startBeat, bpi: beatClock.bpi, pickup }
       for (const m of members.values()) {
         m.send(msg)
       }

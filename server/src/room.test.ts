@@ -261,3 +261,50 @@ describe('startSong (房间同步开始)', () => {
     expect(msg.beat % 4).toBe(0)
   })
 })
+
+describe('startJam (自由合奏同步起奏)', () => {
+  it('小节开始: startBeat 是边界前某小节的整数倍拍,且 ≥ bars 小节后', () => {
+    let t = 1000 // 120bpm/4bpi → beat 2.0
+    const room = createRoom(120, 4, () => t, 'TESTRO')
+    const a = makeMember('a', 'Alice')
+    room.join(a.member)
+    a.sent.length = 0
+
+    t = 1300 // beat 2.6 → 边界 = ceil((2.6 + 2*4)/4)*4 = 12
+    room.startJam(2, false)
+    const msg = a.sent[0] as { type: 'jamStart'; startBeat: number; bpi: number; pickup: boolean }
+    expect(msg.type).toBe('jamStart')
+    expect(msg.bpi).toBe(4)
+    expect(msg.pickup).toBe(false)
+    expect(msg.startBeat % 4).toBe(0) // 小节边界(强拍)
+    expect(msg.startBeat).toBeGreaterThanOrEqual(2.6 + 8) // ≥ 2 小节后
+  })
+
+  it('弱起: startBeat 是边界前一拍(弱拍)', () => {
+    let t = 0
+    const room = createRoom(120, 4, () => t, 'TESTRO')
+    const a = makeMember('a', 'Alice')
+    room.join(a.member)
+    a.sent.length = 0
+
+    t = 2500 // beat 5.0 → 边界 = ceil((5+4)/4)*4 = 12
+    room.startJam(1, true)
+    const msg = a.sent[0] as { type: 'jamStart'; startBeat: number; pickup: boolean }
+    expect(msg.pickup).toBe(true)
+    expect(msg.startBeat).toBe(11) // 12 - 1,上一小节末拍
+    expect(msg.startBeat % 4).toBe(3) // 弱拍
+  })
+
+  it('广播给所有成员', () => {
+    const room = createRoom(120, 4, () => 1000, 'TESTRO')
+    const a = makeMember('a', 'Alice')
+    const b = makeMember('b', 'Bob')
+    room.join(a.member)
+    room.join(b.member)
+    a.sent.length = 0
+    b.sent.length = 0
+    room.startJam(1, false)
+    expect(a.sent[0]).toMatchObject({ type: 'jamStart' })
+    expect(b.sent[0]).toMatchObject({ type: 'jamStart' })
+  })
+})

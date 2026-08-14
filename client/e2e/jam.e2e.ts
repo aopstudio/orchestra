@@ -650,3 +650,52 @@ test('instrument picker: free-jam timbre selection is heard by remote players', 
   await ctxA.close()
   await ctxB.close()
 })
+
+test('jam sync: two players start a free jam together after a custom lead-in (bars + pickup)', async ({
+  browser,
+}) => {
+  const ctxA = await browser.newContext()
+  const pageA = await ctxA.newPage()
+  const roomCode = await createRoom(pageA, 'JamA')
+  const ctxB = await browser.newContext()
+  const pageB = await ctxB.newPage()
+  await joinRoom(pageB, 'JamB', roomCode)
+
+  // A 设置 2 小节预备 + 小节开始(强拍),发起
+  await pageA.getByTestId('jam-bars-2').click()
+  await pageA.getByTestId('jam-downbeat').click()
+  await pageA.getByTestId('jam-start-btn').click()
+
+  // 双方都进入倒计时
+  await expect(pageA.getByTestId('jam-countdown')).toBeVisible({ timeout: 10_000 })
+  await expect(pageB.getByTestId('jam-countdown')).toBeVisible({ timeout: 10_000 })
+
+  // 双方读数一致(同一服务器目标拍)
+  await expect
+    .poll(
+      () => pageA.getByTestId('jam-beats-left').textContent(),
+      { timeout: 10_000 },
+    )
+    .not.toBe('…')
+  const aLeft = await pageA.getByTestId('jam-beats-left').textContent()
+  const bLeft = await pageB.getByTestId('jam-beats-left').textContent()
+  expect(aLeft).toBe(bLeft)
+
+  // 倒计时结束 → 双方显示"演奏中"
+  await expect(pageA.getByTestId('jam-go')).toBeVisible({ timeout: 25_000 })
+  await expect(pageB.getByTestId('jam-go')).toBeVisible({ timeout: 25_000 })
+  console.log('[e2e] jam sync: both started together after lead-in')
+
+  // 弱起变体: B 发起
+  await pageB.getByTestId('jam-bars-1').click()
+  await pageB.getByTestId('jam-pickup').click()
+  await pageB.getByTestId('jam-start-btn').click()
+  await expect(pageB.getByTestId('jam-countdown')).toBeVisible({ timeout: 10_000 })
+  await expect(pageA.getByTestId('jam-countdown')).toBeVisible({ timeout: 10_000 })
+  await expect(pageB.getByTestId('jam-go')).toBeVisible({ timeout: 25_000 })
+  await expect(pageA.getByTestId('jam-go')).toBeVisible({ timeout: 25_000 })
+  console.log('[e2e] jam sync: pickup variant also synchronized')
+
+  await ctxA.close()
+  await ctxB.close()
+})
