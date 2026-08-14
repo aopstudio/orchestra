@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { DRUM_KEYMAP } from '../src/input/keyboard'
 
 declare global {
   interface Window {
@@ -203,4 +204,93 @@ test('joining a non-existent room surfaces a room error and allows retry', async
   await expect(page.getByTestId('error-box')).toContainText('NOPE42', { timeout: 20_000 })
   await expect(page.getByTestId('conn-badge')).toHaveText('OFFLINE', { timeout: 20_000 })
   await ctx.close()
+})
+
+test('song guide: arm the rock-groove drums → countdown → guide highlight → judgment', async ({
+  browser,
+}) => {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  await createRoom(page, 'Drummer')
+  await waitInstrumentsReady(page)
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
+
+  // 乐器高亮模式(鼓垫)
+  await page.getByTestId('guide-mode-highlight').click()
+
+  // 选摇滚曲目并武装鼓声部 → 倒计时出现
+  await page.getByTestId('song-rock-groove').click()
+  await page.getByTestId('part-rock-groove-drums').click()
+  await expect(page.getByTestId('songbook-countdown')).toBeVisible()
+
+  // 倒计时结束、歌曲开始 → 鼓垫出现且出现引导高亮
+  await expect(page.getByTestId('drumpad')).toBeVisible({ timeout: 25_000 })
+  await expect
+    .poll(
+      () =>
+        page.locator('.drum-pad.guide-now, .drum-pad.guide-next').count(),
+      { timeout: 25_000 },
+    )
+    .toBeGreaterThan(0)
+
+  // 判定统计开始滚动(miss 会随播放自动累积)
+  await expect(page.getByTestId('judge-stats')).toBeVisible()
+
+  // 追着引导鼓垫按对应键位 → 至少命中一次。
+  // 判定窗口比引导窗口宽 ±0.5 拍,所以 guide-now 没有时按 guide-next 也可能命中。
+  let hits = 0
+  for (let i = 0; i < 24; i += 1) {
+    const pad = page
+      .locator('.drum-pad.guide-now, .drum-pad.guide-next')
+      .first()
+    if ((await pad.count()) > 0) {
+      const testid = await pad.getAttribute('data-testid')
+      const note = Number(testid?.replace('drum-', ''))
+      const key = Object.entries(DRUM_KEYMAP).find(([, n]) => n === note)?.[0]
+      if (key !== undefined) {
+        await page.keyboard.press(key)
+      }
+    }
+    await page.waitForTimeout(130)
+    // 注意: judge-stats 的 textContent 已剥离 <b> 标签,正则直接匹配数字
+    const text = await page.getByTestId('judge-stats').textContent()
+    hits = Number(text?.match(/HIT\s+(\d+)/)?.[1] ?? 0)
+    if (hits >= 1) break
+  }
+  expect(hits).toBeGreaterThanOrEqual(1)
+  console.log(`[e2e] drum guide: ${hits} hit(s) while chasing the guide`)
+
+  await ctx.close()
+})
+
+test('tempo and meter changes broadcast to every player in the room', async ({ browser }) => {
+  const ctxA = await browser.newContext()
+  const pageA = await ctxA.newPage()
+  const roomCode = await createRoom(pageA, 'TempoA')
+
+  const ctxB = await browser.newContext()
+  const pageB = await ctxB.newPage()
+  await joinRoom(pageB, 'TempoB', roomCode)
+
+  // A 把速度从 120 改到 90(聚焦滑块,按到目标值为止;快速连按偶有丢键)
+  const slider = pageA.getByTestId('tempo-slider')
+  await slider.focus()
+  for (let i = 0; i < 80; i += 1) {
+    if ((await pageA.getByTestId('tempo-value').textContent()) === '90') break
+    await pageA.keyboard.press('ArrowDown')
+  }
+  await expect(pageA.getByTestId('tempo-value')).toHaveText('90')
+  await expect
+    .poll(() => pageB.getByTestId('tempo-value').textContent(), { timeout: 10_000 })
+    .toBe('90')
+  await expect(pageA.getByTestId('tempo-value')).toHaveText('90')
+
+  // A 把拍号改成 3/4 → B 的节拍读数显示 / 3
+  await pageA.getByTestId('tsig-3').click()
+  await expect
+    .poll(() => pageB.getByTestId('readout-beat').textContent(), { timeout: 10_000 })
+    .toContain('/ 3')
+
+  await ctxA.close()
+  await ctxB.close()
 })

@@ -40,6 +40,9 @@ export interface SongPickerProps {
   songBpmOverrides?: Record<string, number>
   /** Change a song's default tempo (persisted + applied to the room). */
   onSongBpmChange?: (songId: string, bpm: number) => void
+  /** 引导模式: 下落音符(滚动条)或虚拟乐器高亮(琴键/鼓垫)。 */
+  guideMode?: 'ticker' | 'highlight'
+  onGuideModeChange?: (mode: 'ticker' | 'highlight') => void
 }
 
 /** Compact meta line under each song title. */
@@ -63,6 +66,8 @@ export default function SongPicker({
   onRestart,
   songBpmOverrides = {},
   onSongBpmChange,
+  guideMode = 'ticker',
+  onGuideModeChange,
 }: SongPickerProps) {
   const selectedSong = songs.find((s) => s.id === selectedSongId) ?? null
   const armed = selectedPartId !== null
@@ -165,6 +170,30 @@ export default function SongPicker({
           )}
         </div>
       )}
+
+      <div className="guide-mode-row">
+        <span className="field-label">Guide · 引导</span>
+        <div className="tsig-pills" role="group" aria-label="Guide mode">
+          <button
+            type="button"
+            className={guideMode === 'ticker' ? 'tsig-pill tsig-pill-active' : 'tsig-pill'}
+            data-testid="guide-mode-ticker"
+            aria-pressed={guideMode === 'ticker'}
+            onClick={() => onGuideModeChange?.('ticker')}
+          >
+            下落音符
+          </button>
+          <button
+            type="button"
+            className={guideMode === 'highlight' ? 'tsig-pill tsig-pill-active' : 'tsig-pill'}
+            data-testid="guide-mode-highlight"
+            aria-pressed={guideMode === 'highlight'}
+            onClick={() => onGuideModeChange?.('highlight')}
+          >
+            乐器高亮
+          </button>
+        </div>
+      </div>
 
       <div className="songbook-foot">
         <button

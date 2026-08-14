@@ -26,6 +26,7 @@ import { createInstruments, type Instruments } from './audio/instruments'
 import { KeyState, drumNoteForKey, noteForKey } from './input/keyboard'
 import JamPad, { PAD_HIGH_NOTE, PAD_LOW_NOTE } from './ui/JamPad'
 import GuideTicker from './ui/GuideTicker'
+import DrumPad from './ui/DrumPad'
 import StatusPanel, { type ConnState, type Peer } from './ui/StatusPanel'
 import MixerPanel from './ui/MixerPanel'
 import SongPicker from './ui/SongPicker'
@@ -138,6 +139,11 @@ export default function App() {
     }
   })
   const [judgeEnabled, setJudgeEnabled] = useState(true)
+  /** 引导模式: 下落音符滚动条 / 虚拟乐器高亮(琴键与鼓垫)。 */
+  const [guideMode, setGuideMode] = useState<'ticker' | 'highlight'>(() => {
+    const saved = localStorage.getItem('orch.guideMode')
+    return saved === 'highlight' ? 'highlight' : 'ticker'
+  })
   /** Guide window: MIDI notes to press now / arriving soon, from the guide engine. */
   const [guideCurrent, setGuideCurrent] = useState<ReadonlySet<number>>(() => new Set())
   const [guideUpcoming, setGuideUpcoming] = useState<ReadonlySet<number>>(() => new Set())
@@ -724,6 +730,12 @@ export default function App() {
   /** Effective BPM for a song: user override if set, else the song's default. */
   const effectiveSongBpm = (song: Song): number => songBpmOverrides[song.id] ?? song.bpm
 
+  /** 切换引导模式(持久化)。 */
+  const handleGuideModeChange = (mode: 'ticker' | 'highlight'): void => {
+    setGuideMode(mode)
+    localStorage.setItem('orch.guideMode', mode)
+  }
+
   /** Persist per-song BPM overrides. */
   useEffect(() => {
     localStorage.setItem('orch.songBpm', JSON.stringify(songBpmOverrides))
@@ -1039,6 +1051,8 @@ export default function App() {
             onRestart={handleRestart}
             songBpmOverrides={songBpmOverrides}
             onSongBpmChange={handleSongBpmChange}
+            guideMode={guideMode}
+            onGuideModeChange={handleGuideModeChange}
           />
 
           <section className="panel">
@@ -1129,12 +1143,25 @@ export default function App() {
             soundTest={() => void handleSoundTest()}
             soundTestBusy={soundTestBusy}
           />
-          <GuideTicker
-            notes={selectedPart?.notes ?? []}
-            getSongBeat={getSongBeat}
-            prepBeats={prepBeats}
-            enabled={connState === 'connected'}
-          />
+          {guideMode === 'ticker' ? (
+            <GuideTicker
+              notes={selectedPart?.notes ?? []}
+              getSongBeat={getSongBeat}
+              prepBeats={prepBeats}
+              enabled={connState === 'connected'}
+            />
+          ) : selectedPart?.instrument === 'drums' ? (
+            // 乐器高亮模式 + 鼓声部: 琴键(48+)之外的 GM 鼓件在 DrumPad 上高亮
+            <DrumPad
+              notes={selectedPart.notes}
+              guideCurrent={guideCurrent}
+              guideUpcoming={guideUpcoming}
+              downNotes={downNotes}
+              remoteNotes={remoteNotes}
+              enabled={connState === 'connected'}
+              onHit={(note) => noteOn(note, true)}
+            />
+          ) : null}
         </div>
       </main>
 
