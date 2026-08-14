@@ -271,6 +271,61 @@ button {
   color: var(--ink-faint);
 }
 
+/* --- room code callout (创建房间后醒目展示房间码) --- */
+
+.room-code-callout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  border: 1px solid rgba(255, 180, 84, 0.5);
+  border-radius: 4px;
+  background: linear-gradient(180deg, rgba(255, 180, 84, 0.12), rgba(255, 180, 84, 0.04));
+  animation: callout-in 0.35s ease;
+}
+
+@keyframes callout-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.room-code-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+
+.room-code-value-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.room-code-value {
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.35em;
+  line-height: 1;
+  color: var(--amber);
+  text-shadow: 0 0 14px rgba(255, 180, 84, 0.45);
+}
+
+.btn-copy {
+  color: #04110e;
+  background: linear-gradient(180deg, var(--cyan-hi), var(--cyan));
+  padding: 7px 12px;
+  font-size: 11px;
+}
+
 .connect-actions {
   display: flex;
   gap: var(--s-2);

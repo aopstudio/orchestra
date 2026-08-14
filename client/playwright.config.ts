@@ -38,21 +38,21 @@ export default defineConfig({
       command: 'PORT=8081 npm run start -w @orchestra/server',
       cwd: '..',
       port: 8081,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false, // 见文件头注释: 复用易踩端口冲突,
       timeout: 30_000,
     },
     {
       // 把 /ws 与 /api 的 Vite 代理都指向 E2E 用的 8081 后端
       command: 'VITE_WS_TARGET=http://localhost:8081 npm run dev',
       port: 5173,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false, // 见文件头注释: 复用易踩端口冲突,
       timeout: 30_000,
     },
     {
       // 跨城模拟中继: 单程 60ms 延迟,用于验证事件架构对 RTT 不敏感
       command: 'PORT=8082 TARGET=ws://localhost:8081 DELAY_MS=60 node e2e/relay.cjs',
       port: 8082,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: false, // 见文件头注释: 复用易踩端口冲突,
       timeout: 30_000,
     },
   ],

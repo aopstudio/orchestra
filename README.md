@@ -67,6 +67,8 @@ GitHub Actions(`.github/workflows/ci.yml`)在每次 push / PR 自动运行:
 ```bash
 npm test               # 全部单元测试（shared + server + client）
 npm run e2e -w client  # Playwright 双浏览器合奏 E2E（自动起 server:8081 + Vite:5173）
+
+# 注意: E2E 需要 8081/5173/8082 端口空闲——跑之前请先停掉 dev:server / dev:client
 npx tsc --noEmit -p shared    # 各包类型检查
 npx tsc --noEmit -p server
 npx tsc --noEmit -p client

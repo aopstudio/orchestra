@@ -52,6 +52,10 @@ async function createRoom(page: Page, name: string): Promise<string> {
   await expect(page.getByTestId('conn-badge')).toHaveText('CONNECTED', { timeout: 20_000 })
   const code = await page.getByTestId('room-code').locator('b').textContent()
   expect(code).toMatch(/^[A-Z2-9]{6}$/)
+  // 醒目的房间码卡片: 展示同一个码 + 复制按钮
+  await expect(page.getByTestId('room-code-callout')).toBeVisible()
+  await expect(page.getByTestId('room-code-value')).toHaveText(code ?? '')
+  await expect(page.getByTestId('copy-room-code')).toBeVisible()
   return code ?? ''
 }
 

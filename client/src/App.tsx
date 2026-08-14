@@ -105,6 +105,8 @@ export default function App() {
   const [myId, setMyId] = useState<string | null>(null)
   /** 所在房间码(welcome 下发;创建/加入成功后展示给队友)。 */
   const [roomCode, setRoomCode] = useState<string | null>(null)
+  /** 房间码复制反馈(短暂显示"已复制")。 */
+  const [roomCodeCopied, setRoomCodeCopied] = useState(false)
   const [peers, setPeers] = useState<Peer[]>([])
   const [bpm, setBpm] = useState(120)
   const [bpi, setBpi] = useState(4)
@@ -475,6 +477,23 @@ export default function App() {
   /* eslint-enable react-hooks/refs */
 
   // --- user interactions -----------------------------------------------------
+
+  /** 复制房间码到剪贴板(带短暂反馈)。 */
+  const handleCopyRoomCode = (): void => {
+    if (roomCode === null) return
+    void navigator.clipboard
+      .writeText(roomCode)
+      .then(() => setRoomCodeCopied(true))
+      .catch((err: unknown) => {
+        console.warn('[App] copy room code failed:', err)
+        setRoomCodeCopied(true) // 乐观反馈,失败也不阻塞流程
+      })
+  }
+  useEffect(() => {
+    if (!roomCodeCopied) return
+    const timer = window.setTimeout(() => setRoomCodeCopied(false), 1600)
+    return () => window.clearTimeout(timer)
+  }, [roomCodeCopied])
 
   /** Create/Join: creates the AudioContext (user gesture) and the socket, then
    *  sends the room intent (createRoom or join with code). */
@@ -1131,6 +1150,9 @@ export default function App() {
             midiState={midiState}
             midiDevices={midiDevices}
             onConnectMidi={() => void handleConnectMidi()}
+            roomCode={roomCode}
+            onCopyRoomCode={handleCopyRoomCode}
+            copied={roomCodeCopied}
           />
 
           <StatusPanel

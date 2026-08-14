@@ -19,6 +19,11 @@ export interface LinkUpPanelProps {
   midiState: MidiState
   midiDevices: string[]
   onConnectMidi: () => void
+  /** 当前所在房间码(创建/加入成功后显示,供分享给朋友)。 */
+  roomCode: string | null
+  onCopyRoomCode: () => void
+  /** 复制按钮是否刚被点击过(显示"已复制"反馈)。 */
+  copied: boolean
 }
 
 export default function LinkUpPanel({
@@ -34,6 +39,9 @@ export default function LinkUpPanel({
   midiState,
   midiDevices,
   onConnectMidi,
+  roomCode,
+  onCopyRoomCode,
+  copied,
 }: LinkUpPanelProps) {
   return (
     <section className="panel">
@@ -101,6 +109,29 @@ export default function LinkUpPanel({
         <p className="field-hint">
           创建房间后会得到 6 位房间码;把码告诉朋友,他们填码点「加入房间」。
         </p>
+
+        {roomCode !== null && (
+          <div className="room-code-callout" data-testid="room-code-callout">
+            <span className="room-code-label">你的房间码 · 发给朋友</span>
+            <div className="room-code-value-row">
+              <span className="room-code-value" data-testid="room-code-value">
+                {roomCode}
+              </span>
+              <button
+                type="button"
+                className="btn btn-copy"
+                data-testid="copy-room-code"
+                onClick={onCopyRoomCode}
+              >
+                {copied ? '已复制 ✓' : '复制'}
+              </button>
+            </div>
+            <p className="field-hint">
+              朋友在上方 Room Code 输入这 6 位码,点「加入房间」即可进你的房间。
+            </p>
+          </div>
+        )}
+
         <div className="midi-row">
           <button
             type="button"
