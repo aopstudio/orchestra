@@ -31,6 +31,10 @@ export interface SongStudioProps {
   onFetchShare: (code: string) => Promise<boolean>
   /** 回放最近一次录制。 */
   onReplay: () => void
+  /** 最近取回分享曲的点赞数(null = 尚未取回)。 */
+  fetchedLikes: number | null
+  /** 给最近取回的分享曲点赞。 */
+  onLike: () => Promise<void>
 }
 
 export default function SongStudio({
@@ -46,6 +50,8 @@ export default function SongStudio({
   shareId,
   onFetchShare,
   onReplay,
+  fetchedLikes,
+  onLike,
 }: SongStudioProps) {
   const [title, setTitle] = useState('我的新曲')
   const [importText, setImportText] = useState('')
@@ -183,6 +189,16 @@ export default function SongStudio({
           <span className="studio-hint err" data-testid="fetch-fail">
             分享码无效或服务器不可达
           </span>
+        )}
+        {fetchedLikes !== null && (
+          <button
+            type="button"
+            className="btn btn-like"
+            data-testid="like-btn"
+            onClick={() => void onLike()}
+          >
+            ♥ {fetchedLikes}
+          </button>
         )}
       </div>
 

@@ -463,7 +463,12 @@ test('song sharing: publish a song to the server and fetch it back by share code
   await page.getByTestId('fetch-btn').click()
   await expect(page.getByTestId('fetch-ok')).toBeVisible()
   await expect(page.locator('.song-row', { hasText: '分享测试曲' })).toHaveCount(2)
-  console.log(`[e2e] song share round-trip: ${code}`)
+
+  // 评分: 点赞 → 计数 +1
+  await expect(page.getByTestId('like-btn')).toContainText('♥ 0')
+  await page.getByTestId('like-btn').click()
+  await expect(page.getByTestId('like-btn')).toContainText('♥ 1')
+  console.log(`[e2e] song share round-trip: ${code} (liked)`)
 
   await ctx.close()
 })

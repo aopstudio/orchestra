@@ -18,12 +18,21 @@ export interface SongStore {
   add(song: Song): string
   /** 按分享码取回曲目;不存在返回 null。 */
   get(code: string): Song | null
+  /** 按分享码给曲目点赞,返回最新点赞数;不存在返回 null。 */
+  like(code: string): number | null
+  /** 按分享码查询点赞数;不存在返回 null。 */
+  likesOf(code: string): number | null
   /** 当前存曲数。 */
   size(): number
 }
 
+interface Entry {
+  song: Song
+  likes: number
+}
+
 export function createSongStore(): SongStore {
-  const songs = new Map<string, Song>()
+  const songs = new Map<string, Entry>()
 
   function generateCode(): string {
     let code: string
@@ -36,14 +45,27 @@ export function createSongStore(): SongStore {
     return code
   }
 
+  function entryOf(rawCode: string): Entry | null {
+    return songs.get(rawCode.trim().toUpperCase()) ?? null
+  }
+
   return {
     add(song) {
       const code = generateCode()
-      songs.set(code, song)
+      songs.set(code, { song, likes: 0 })
       return code
     },
     get(code) {
-      return songs.get(code.trim().toUpperCase()) ?? null
+      return entryOf(code)?.song ?? null
+    },
+    like(code) {
+      const entry = entryOf(code)
+      if (entry === null) return null
+      entry.likes += 1
+      return entry.likes
+    },
+    likesOf(code) {
+      return entryOf(code)?.likes ?? null
     },
     size: () => songs.size,
   }

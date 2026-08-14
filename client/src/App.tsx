@@ -186,6 +186,9 @@ export default function App() {
   const [shareId, setShareId] = useState<string | null>(null)
   /** 录制会话: 起点服务器拍 + 收集的音符。 */
   const recordingRef = useRef<{ startBeat: number; notes: SongNote[] } | null>(null)
+  /** 最近取回分享曲的点赞信息(评分)。 */
+  const [fetchedCode, setFetchedCode] = useState<string | null>(null)
+  const [fetchedLikes, setFetchedLikes] = useState<number | null>(null)
   /** 新手教程: 首次访问自动打开,之后可手动重开。 */
   const [tutorialOpen, setTutorialOpen] = useState(
     () => localStorage.getItem('orch.tutorialDone') !== '1',
@@ -974,9 +977,31 @@ export default function App() {
       const next = [...customSongs, song]
       setCustomSongs(next)
       saveCustomSongs(next)
+      // 顺带查点赞数
+      const meta = await fetch(
+        `/api/songs/${encodeURIComponent(code.trim().toUpperCase())}/meta`,
+      ).catch(() => null)
+      const likes = meta !== null && meta.ok ? ((await meta.json()) as { likes: number }).likes : 0
+      setFetchedCode(code.trim().toUpperCase())
+      setFetchedLikes(likes)
       return true
     } catch {
       return false
+    }
+  }
+
+  /** 给最近取回的分享曲点赞(Phase 3 评分)。 */
+  const handleLikeSong = async (): Promise<void> => {
+    if (fetchedCode === null) return
+    try {
+      const res = await fetch(`/api/songs/${encodeURIComponent(fetchedCode)}/like`, {
+        method: 'POST',
+      })
+      if (!res.ok) throw new Error(String(res.status))
+      const data = (await res.json()) as { likes: number }
+      setFetchedLikes(data.likes)
+    } catch (err) {
+      console.warn('[App] like failed:', err)
     }
   }
 
@@ -1370,6 +1395,8 @@ export default function App() {
             shareId={shareId}
             onFetchShare={handleFetchShare}
             onReplay={handleReplayRecording}
+            fetchedLikes={fetchedLikes}
+            onLike={handleLikeSong}
           />
 
           <section className="panel">

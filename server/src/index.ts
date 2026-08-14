@@ -68,6 +68,32 @@ function requestHandler(req: IncomingMessage, res: ServerResponse): void {
     return
   }
 
+  // 评分(Phase 3): 点赞与查询
+  const likeMatch = url.pathname.match(/^\/api\/songs\/([A-Za-z0-9]+)\/like$/)
+  if (likeMatch !== null && req.method === 'POST') {
+    const likes = songStore.like(likeMatch[1] ?? '')
+    if (likes === null) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' })
+      res.end(JSON.stringify({ error: 'not found' }))
+      return
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
+    res.end(JSON.stringify({ likes }))
+    return
+  }
+  const metaMatch = url.pathname.match(/^\/api\/songs\/([A-Za-z0-9]+)\/meta$/)
+  if (metaMatch !== null && req.method === 'GET') {
+    const likes = songStore.likesOf(metaMatch[1] ?? '')
+    if (likes === null) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' })
+      res.end(JSON.stringify({ error: 'not found' }))
+      return
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
+    res.end(JSON.stringify({ likes }))
+    return
+  }
+
   if (url.pathname.startsWith('/api/')) {
     res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' })
     res.end(JSON.stringify({ error: 'unknown api' }))

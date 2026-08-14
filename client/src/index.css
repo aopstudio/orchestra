@@ -686,6 +686,11 @@ button {
   background: linear-gradient(180deg, var(--cyan-hi), var(--cyan));
 }
 
+.btn-like {
+  color: #fff;
+  background: linear-gradient(180deg, #ff7a9e, #e0486f);
+}
+
 .share-code {
   font-family: var(--font-mono);
   letter-spacing: 0.25em;
