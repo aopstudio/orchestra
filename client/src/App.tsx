@@ -30,6 +30,7 @@ import GuideTicker from './ui/GuideTicker'
 import DrumPad from './ui/DrumPad'
 import ScoreView from './ui/ScoreView'
 import SongStudio from './ui/SongStudio'
+import TutorialModal from './ui/TutorialModal'
 import {
   exportSongJson,
   importSongJson,
@@ -178,6 +179,10 @@ export default function App() {
   const [shareId, setShareId] = useState<string | null>(null)
   /** 录制会话: 起点服务器拍 + 收集的音符。 */
   const recordingRef = useRef<{ startBeat: number; notes: SongNote[] } | null>(null)
+  /** 新手教程: 首次访问自动打开,之后可手动重开。 */
+  const [tutorialOpen, setTutorialOpen] = useState(
+    () => localStorage.getItem('orch.tutorialDone') !== '1',
+  )
   /** Guide window: MIDI notes to press now / arriving soon, from the guide engine. */
   const [guideCurrent, setGuideCurrent] = useState<ReadonlySet<number>>(() => new Set())
   const [guideUpcoming, setGuideUpcoming] = useState<ReadonlySet<number>>(() => new Set())
@@ -822,6 +827,12 @@ export default function App() {
   /** Effective BPM for a song: user override if set, else the song's default. */
   const effectiveSongBpm = (song: Song): number => songBpmOverrides[song.id] ?? song.bpm
 
+  /** 关闭教程: 记录完成,不再自动弹出。 */
+  const handleCloseTutorial = (): void => {
+    setTutorialOpen(false)
+    localStorage.setItem('orch.tutorialDone', '1')
+  }
+
   /** 切换引导模式(持久化)。 */
   const handleGuideModeChange = (mode: 'ticker' | 'highlight'): void => {
     setGuideMode(mode)
@@ -1178,6 +1189,14 @@ export default function App() {
           <span className="brand-kicker">Orchestra // Phase 0 · Sync Validation</span>
           <h1 className="brand-title">JamPad</h1>
         </div>
+        <button
+          type="button"
+          className="btn btn-tutorial"
+          data-testid="tutorial-btn"
+          onClick={() => setTutorialOpen(true)}
+        >
+          新手教程 / 演奏手册
+        </button>
         <p className="tagline">
           Two browsers, one room. Hit a key here, <b>hear it in the other room</b> — and watch the
           clock offset and server beat settle in the status panel.
@@ -1456,6 +1475,8 @@ export default function App() {
         <span>clock offset = server − client · positive means server is ahead</span>
         <span>pitch keys: white A–K, Z–M · black W–U, Q–6 (C3–C5) · drums: A/S/D/F… = kick/snare/hat…</span>
       </footer>
+
+      <TutorialModal open={tutorialOpen} onClose={handleCloseTutorial} />
     </div>
   )
 }

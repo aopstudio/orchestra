@@ -37,6 +37,10 @@ async function blockCdn(page: Page): Promise<void> {
 async function openForm(page: Page, name: string): Promise<void> {
   await blockCdn(page)
   await page.goto(E2E_URL)
+  // 首次访问的新手教程会遮住界面 —— 关掉它
+  if ((await page.getByTestId('tutorial-modal').count()) > 0) {
+    await page.getByTestId('tut-close').click()
+  }
   await page.locator('label.field', { hasText: 'Server' }).locator('input').fill(WS_URL)
   await page.getByTestId('name-input').fill(name)
 }
@@ -461,5 +465,30 @@ test('song sharing: publish a song to the server and fetch it back by share code
   await expect(page.locator('.song-row', { hasText: '分享测试曲' })).toHaveCount(2)
   console.log(`[e2e] song share round-trip: ${code}`)
 
+  await ctx.close()
+})
+
+test('first-run tutorial walks through all steps and closes', async ({ browser }) => {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  await blockCdn(page)
+  await page.goto(E2E_URL)
+
+  // 首次访问自动弹出教程;共 6 步,从第 1 步按「下一步」5 次到达末步
+  await expect(page.getByTestId('tutorial-modal')).toBeVisible()
+  await expect(page.getByTestId('tut-prev')).toBeDisabled()
+  for (let i = 0; i < 5; i += 1) {
+    await page.getByTestId('tut-next').click()
+  }
+  await page.getByTestId('tut-finish').click()
+  await expect(page.getByTestId('tutorial-modal')).toHaveCount(0)
+
+  // 完成标记: 刷新后不再自动弹出
+  await page.reload()
+  await expect(page.getByTestId('tutorial-modal')).toHaveCount(0)
+
+  // 手动按钮可再次打开
+  await page.getByTestId('tutorial-btn').click()
+  await expect(page.getByTestId('tutorial-modal')).toBeVisible()
   await ctx.close()
 })
