@@ -257,8 +257,12 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
     onNote: (msg) => {
       // E2E hook: count remote notes received (only when the ?e2e flag is set).
       if (window.location.search.includes('e2e')) {
-        const hook = window as unknown as { __orchNotes?: number }
+        const hook = window as unknown as {
+          __orchNotes?: number
+          __orchLastInstrument?: string
+        }
         hook.__orchNotes = (hook.__orchNotes ?? 0) + 1
+        hook.__orchLastInstrument = msg.instrument
       }
       const inst = instrumentsRef.current
       const sched = schedulerRef.current

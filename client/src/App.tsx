@@ -41,6 +41,7 @@ import {
 } from './songs/customSongs'
 import StatusPanel, { type ConnState, type Peer } from './ui/StatusPanel'
 import MixerPanel from './ui/MixerPanel'
+import InstrumentPicker from './ui/InstrumentPicker'
 import LinkUpPanel from './ui/LinkUpPanel'
 import TempoPanel from './ui/TempoPanel'
 import SongPicker from './ui/SongPicker'
@@ -163,6 +164,18 @@ export default function App() {
   })
   /** 谱面(OSMD 总谱/分谱)是否显示。 */
   const [showScore, setShowScore] = useState(() => localStorage.getItem('orch.showScore') === '1')
+  /** 自由合奏音色(持久化);武装声部后由声部决定。 */
+  const [jamInstrument, setJamInstrument] = useState<InstrumentId>(() => {
+    const saved = localStorage.getItem('orch.instrument')
+    return saved === 'bass' || saved === 'drums' || saved === 'trumpet' || saved === 'violin'
+      ? saved
+      : 'piano'
+  })
+  // 一次性订阅的键盘处理器走首渲染闭包,音色必须经 ref 读取才能拿到最新值
+  const jamInstrumentRef = useRef(jamInstrument)
+  useEffect(() => {
+    jamInstrumentRef.current = jamInstrument
+  })
   /** 歌曲当前位置(拍,相对歌曲起点)——驱动谱面跟随高亮。 */
   const [songBeatState, setSongBeatState] = useState<number | null>(null)
 
@@ -578,8 +591,10 @@ export default function App() {
     wsRef.current?.sendSetBpi(nextBpi)
   }
 
-  /** 当前演奏的乐器: 选了声部用声部的乐器,自由合奏(jam)用钢琴。 */
-  const currentInstrument = (): InstrumentId => selectedPartRef.current?.instrument ?? 'piano'
+  /** 当前演奏的乐器: 选了声部用声部的乐器,自由合奏(jam)用玩家选择的音色
+   * (经 ref 读取,保证一次性订阅的键盘闭包拿到最新选择)。 */
+  const currentInstrument = (): InstrumentId =>
+    selectedPartRef.current?.instrument ?? jamInstrumentRef.current
 
   /**
    * Shared note-on for BOTH the computer keyboard and the JamPad's mouse keys:
@@ -886,6 +901,11 @@ export default function App() {
     localStorage.setItem('orch.mix', JSON.stringify(mixVolumes))
   }, [mixVolumes])
 
+  /** Persist the free-jam instrument choice. */
+  useEffect(() => {
+    localStorage.setItem('orch.instrument', jamInstrument)
+  }, [jamInstrument])
+
   /** Pick a song: clears the armed part and applies the song's tempo room-wide. */
   const handleSelectSong = (songId: string): void => {
     // 内置 + 自定义曲库中查找
@@ -1128,6 +1148,14 @@ export default function App() {
             bpm={bpm}
             bpi={bpi}
             error={error}
+          />
+
+          <InstrumentPicker
+            current={selectedPart?.instrument ?? jamInstrument}
+            locked={selectedPart !== null}
+            lockedLabel={selectedPart?.name}
+            enabled={connState === 'connected'}
+            onChange={setJamInstrument}
           />
 
           <MixerPanel volumes={mixVolumes} onChange={handleMixerChange} />

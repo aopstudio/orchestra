@@ -605,3 +605,41 @@ test('four players jam rock-groove with sync-start: guides start together in one
     await ctx.close()
   }
 })
+
+test('instrument picker: free-jam timbre selection is heard by remote players', async ({
+  browser,
+}) => {
+  // A 创建房间,B 加入;B 自由合奏模式选择贝斯音色后弹奏,A 应听到贝斯
+  const ctxA = await browser.newContext()
+  const pageA = await ctxA.newPage()
+  const roomCode = await createRoom(pageA, 'TimbreA')
+  const ctxB = await browser.newContext()
+  const pageB = await ctxB.newPage()
+  await joinRoom(pageB, 'TimbreB', roomCode)
+  await waitInstrumentsReady(pageB)
+  await waitInstrumentsReady(pageA)
+
+  // 自由合奏下默认钢琴;选贝斯
+  await expect(pageB.getByTestId('instrument-piano')).toHaveAttribute('aria-pressed', 'true')
+  await pageB.getByTestId('instrument-bass').click()
+  await expect(pageB.getByTestId('instrument-bass')).toHaveAttribute('aria-pressed', 'true')
+
+  // B 弹奏 → A 收到且乐器为 bass(固定等待后读计数器,避免 before 采样竞态)
+  await pageB.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
+  await pageB.keyboard.press('a')
+  await pageA.waitForTimeout(1500)
+  const received = await pageA.evaluate(() => window.__orchNotes ?? 0)
+  expect(received).toBeGreaterThan(0)
+  const heard = await pageA.evaluate(() => window.__orchLastInstrument)
+  expect(heard).toBe('bass')
+  console.log(`[e2e] instrument picker: remote heard '${heard}'`)
+
+  // 武装声部后选择器锁定并跟随声部乐器(小星星旋律 = 钢琴)
+  await pageB.getByTestId('song-twinkle').click()
+  await pageB.getByTestId('part-twinkle-melody').click()
+  await expect(pageB.getByTestId('instrument-piano')).toHaveAttribute('aria-pressed', 'true')
+  await expect(pageB.getByTestId('instrument-hint')).toContainText('锁定')
+
+  await ctxA.close()
+  await ctxB.close()
+})
