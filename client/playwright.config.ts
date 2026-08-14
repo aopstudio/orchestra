@@ -21,7 +21,8 @@ export default defineConfig({
   testDir: './e2e',
   // .e2e.ts (not .spec.ts/.test.ts) so Vitest's default include never collects the Playwright suite.
   testMatch: /.*\.e2e\.ts/,
-  timeout: 30_000,
+  // 套件冷启动时 Vite 首次页面加载可能较慢(大 bundle 按需编译),60s 容错。
+  timeout: 60_000,
   fullyParallel: false,
   workers: 1,
   use: {

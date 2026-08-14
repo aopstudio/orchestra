@@ -6,9 +6,9 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { WebSocket, WebSocketServer, type RawData } from 'ws'
 import type { ClientMsg, ServerMsg } from '@orchestra/shared'
 import { isValidSong } from '@orchestra/shared'
-import { createRoomManager, type RoomEntry } from './roomManager'
+import { createRoomManager, DEFAULT_RECLAIM_MS, type RoomEntry } from './roomManager'
 import type { RoomMember } from './room'
-import { createSongStore } from './songStore'
+import { createSongStore, DEFAULT_MAX_SHARES, DEFAULT_SHARE_TTL_MS } from './songStore'
 import { handleStatic } from './static'
 
 const PORT = Number(process.env.PORT ?? 8080)
@@ -18,13 +18,19 @@ const TLS_CERT = process.env.WSS_TLS_CERT
 const TLS_KEY = process.env.WSS_TLS_KEY
 
 // 服务器权威时钟:单调毫秒(协议约定基于 performance.now)
-const manager = createRoomManager(() => performance.now())
+// 资源回收: 空房间宽限期(默认 30 分钟,可用 ROOM_RECLAIM_MS 覆盖)
+const roomReclaimMs = Number(process.env.ROOM_RECLAIM_MS ?? DEFAULT_RECLAIM_MS)
+const manager = createRoomManager(() => performance.now(), roomReclaimMs)
 
 /** 成员 id → 所在房间;未加入房间的成员不在表中 */
 const memberRooms = new Map<string, RoomEntry>()
 
-/** 曲目分享存储(Phase 3): POST /api/songs 存曲,GET /api/songs/:code 取曲。 */
-const songStore = createSongStore()
+/** 曲目分享存储(Phase 3): POST /api/songs 存曲,GET /api/songs/:code 取曲。
+ *  资源回收: 分享 TTL(默认 24h)+ 容量上限(默认 2000,可环境变量覆盖)。 */
+const songStore = createSongStore({
+  ttlMs: Number(process.env.SONG_SHARE_TTL_MS ?? DEFAULT_SHARE_TTL_MS),
+  maxSongs: Number(process.env.SONG_SHARE_MAX ?? DEFAULT_MAX_SHARES),
+})
 
 /** HTTP 请求 → 静态托管(部署模式);WebSocket 升级请求由 ws 库接管。 */
 function requestHandler(req: IncomingMessage, res: ServerResponse): void {
