@@ -176,6 +176,8 @@ wss.on('connection', (ws) => {
       room.setTempo(msg.bpm)
     } else if (msg.type === 'setBpi') {
       room.setBpi(msg.bpi)
+    } else if (msg.type === 'startSong') {
+      room.startSong()
     } else if (msg.type === 'sync') {
       room.sync(member.id, msg.t1)
     }

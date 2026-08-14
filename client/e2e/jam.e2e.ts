@@ -555,3 +555,53 @@ test('cross-city simulation: 60ms one-way relay still syncs the clock and relays
   await ctxA.close()
   await ctxB.close()
 })
+
+test('four players jam rock-groove with sync-start: guides start together in one room', async ({
+  browser,
+}) => {
+  // 4 人进同一房间,每人武装不同声部(鼓/贝斯/键盘/键盘)
+  const ctxs = []
+  const pages: Page[] = []
+  for (let i = 0; i < 4; i += 1) {
+    const ctx = await browser.newContext()
+    ctxs.push(ctx)
+    pages.push(await ctx.newPage())
+  }
+  const roomCode = await createRoom(pages[0]!, 'Ensemble1')
+  for (let i = 1; i < 4; i += 1) {
+    await joinRoom(pages[i]!, `Ensemble${i + 1}`, roomCode)
+  }
+  for (const p of pages) {
+    await waitInstrumentsReady(p!)
+    await p!.getByTestId('guide-mode-highlight').click()
+    await p!.getByTestId('song-rock-groove').click()
+  }
+  const parts = ['drums', 'bass', 'keys', 'keys']
+  for (let i = 0; i < 4; i += 1) {
+    await pages[i]!.getByTestId(`part-rock-groove-${parts[i]}`).click()
+  }
+
+  // P1 发起同步开始 → 所有人都进入倒计时
+  await pages[0]!.getByTestId('sync-start-btn').click()
+  for (const p of pages) {
+    await expect(p!.getByTestId('songbook-countdown')).toBeVisible({ timeout: 10_000 })
+  }
+
+  // 倒计时结束 → 每个页面都出现引导高亮(鼓手看鼓垫,其他看琴键)
+  for (let i = 0; i < 4; i += 1) {
+    const p = pages[i]!
+    const guideSel =
+      parts[i] === 'drums'
+        ? '.drum-pad.guide-now, .drum-pad.guide-next'
+        : 'button.key.guide-now, button.key.guide-next'
+    await expect
+      .poll(() => p.locator(guideSel).count(), { timeout: 25_000 })
+      .toBeGreaterThan(0)
+    await expect(p.getByTestId('songbook-countdown')).toHaveCount(0)
+  }
+  console.log('[e2e] ensemble: all 4 guides started after sync-start')
+
+  for (const ctx of ctxs) {
+    await ctx.close()
+  }
+})

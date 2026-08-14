@@ -1,4 +1,5 @@
 import type { InstrumentId, ServerMsg } from '@orchestra/shared'
+import { nextBarBoundary } from '@orchestra/shared'
 import { createBeatClock } from './beatClock'
 
 export interface RoomMember {
@@ -15,6 +16,8 @@ export interface Room {
   noteOff(fromId: string, note: number): void
   setTempo(bpm: number): void
   setBpi(bpi: number): void
+  /** 广播同步开始: 全房间在同一个下一个小节边界开始各自的武装声部。 */
+  startSong(minAheadBeats?: number): void
   sync(memberId: string, t1: number): void
   broadcastClock(): void
 }
@@ -102,6 +105,16 @@ export function createRoom(
       // meter). Push a clock immediately so clients see the new grid right
       // away instead of waiting up to 500ms for the periodic broadcast.
       this.broadcastClock()
+    },
+
+    startSong(minAheadBeats = 4) {
+      const serverTime = now()
+      const beat = beatClock.beatAt(serverTime)
+      const boundary = nextBarBoundary(beat, beatClock.bpi, minAheadBeats)
+      const msg: ServerMsg = { type: 'songStart', beat: boundary, bpi: beatClock.bpi }
+      for (const m of members.values()) {
+        m.send(msg)
+      }
     },
 
     sync(memberId, t1) {

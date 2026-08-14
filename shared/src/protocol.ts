@@ -25,6 +25,7 @@ export type ClientMsg =
   | { type: 'noteOff'; note: number }
   | { type: 'setTempo'; bpm: number }
   | { type: 'setBpi'; bpi: number }
+  | { type: 'startSong' }
   | { type: 'sync'; t1: number }
 
 /** 服务器 → 客户端 */
@@ -46,6 +47,12 @@ export type ServerMsg =
     }
   | { type: 'noteOff'; from: string; note: number; serverTime: number }
   | { type: 'syncAck'; t1: number; t2: number; t3: number }
+  | {
+      /** 房间同步开始: 全房间在 beat 这一小节边界开始各自的武装声部。 */
+      type: 'songStart'
+      beat: number
+      bpi: number
+    }
 
 /** 服务器房间配置 */
 export interface RoomConfig {

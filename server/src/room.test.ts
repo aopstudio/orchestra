@@ -228,3 +228,36 @@ describe('createRoom', () => {
     expect(c.sent).toEqual([{ type: 'peerLeft', id: 'a' }])
   })
 })
+
+describe('startSong (房间同步开始)', () => {
+  it('广播 songStart 到下一个小节边界,所有成员都收到', () => {
+    let t = 1000 // 120bpm/4bpi → beat 2.0
+    const room = createRoom(120, 4, () => t, 'TESTRO')
+    const a = makeMember('a', 'Alice')
+    const b = makeMember('b', 'Bob')
+    room.join(a.member)
+    room.join(b.member)
+    a.sent.length = 0
+    b.sent.length = 0
+
+    t = 1300 // beat 2.6 → 边界 = ceil((2.6+4)/4)*4 = 8
+    room.startSong()
+
+    const expected = { type: 'songStart', beat: 8, bpi: 4 } as const
+    expect(a.sent[0]).toEqual(expected)
+    expect(b.sent[0]).toEqual(expected)
+  })
+
+  it('同步边界拍是 bpi 的整数倍(歌曲第一拍落在重音)', () => {
+    let t = 0
+    const room = createRoom(120, 4, () => t, 'TESTRO')
+    const a = makeMember('a', 'Alice')
+    room.join(a.member)
+    a.sent.length = 0
+
+    t = 2500 // beat 5.0
+    room.startSong()
+    const msg = a.sent[0] as { type: 'songStart'; beat: number }
+    expect(msg.beat % 4).toBe(0)
+  })
+})

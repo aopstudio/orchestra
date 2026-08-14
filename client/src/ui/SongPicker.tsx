@@ -46,6 +46,8 @@ export interface SongPickerProps {
   /** 谱面(OSMD 总谱/分谱)开关。 */
   showScore?: boolean
   onToggleScore?: () => void
+  /** 请求房间同步开始: 全房间已武装的玩家在同一小节边界起奏。 */
+  onSyncStart?: () => void
 }
 
 /** Compact meta line under each song title. */
@@ -73,6 +75,7 @@ export default function SongPicker({
   onGuideModeChange,
   showScore = false,
   onToggleScore,
+  onSyncStart,
 }: SongPickerProps) {
   const selectedSong = songs.find((s) => s.id === selectedSongId) ?? null
   const armed = selectedPartId !== null
@@ -235,6 +238,15 @@ export default function SongPicker({
               准备 · <b>{countdownBeatsLeft}</b>
             </span>
           )}
+          <button
+            type="button"
+            className="sync-start-btn"
+            data-testid="sync-start-btn"
+            disabled={!enabled}
+            onClick={() => onSyncStart?.()}
+          >
+            ▶ 同步开始
+          </button>
           <button
             type="button"
             className="restart-btn"

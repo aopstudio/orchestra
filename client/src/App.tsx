@@ -600,6 +600,19 @@ export default function App() {
           resolve({ t1: msg.t1, t2: msg.t2, t3: msg.t3, t4: performance.now() })
         }
       },
+
+      onSongStart: (msg) => {
+        // 房间同步开始(Phase 1 合奏): 服务器广播统一的开始边界拍。
+        // 已武装且尚未开始的玩家,把自己的倒计时锚到该边界,全房间同一拍起奏。
+        const part = selectedPartRef.current
+        if (part === null || songStartBeatRef.current !== null) return
+        countdownUntilRef.current = msg.beat
+        const now = latestBeatRef.current
+        const total = now === null ? Math.max(1, msg.beat) : Math.max(1, Math.ceil(msg.beat - now))
+        setCountdownBeatsLeft(total)
+        setPrepBeats(total)
+        setSongBeatState(null)
+      },
     }
   }
   /* eslint-enable react-hooks/refs, react-hooks/purity */
@@ -847,6 +860,11 @@ export default function App() {
   const handleGuideModeChange = (mode: 'ticker' | 'highlight'): void => {
     setGuideMode(mode)
     localStorage.setItem('orch.guideMode', mode)
+  }
+
+  /** 请求房间同步开始: 所有已武装玩家在同一小节边界起奏(Phase 1 合奏)。 */
+  const handleSyncStart = (): void => {
+    wsRef.current?.sendStartSong()
   }
 
   /** 切换谱面显示(持久化)。 */
@@ -1380,6 +1398,7 @@ export default function App() {
             onGuideModeChange={handleGuideModeChange}
             showScore={showScore}
             onToggleScore={handleToggleScore}
+            onSyncStart={handleSyncStart}
           />
 
           <SongStudio

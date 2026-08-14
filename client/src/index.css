@@ -691,6 +691,12 @@ button {
   background: linear-gradient(180deg, #ff7a9e, #e0486f);
 }
 
+.sync-start-btn {
+  color: #04110e;
+  background: linear-gradient(180deg, var(--cyan-hi), var(--cyan));
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+}
+
 .share-code {
   font-family: var(--font-mono);
   letter-spacing: 0.25em;

@@ -117,6 +117,20 @@ test('roomError 消息形状', () => {
   }>()
 })
 
+test('startSong 消息形状', () => {
+  expectTypeOf<Extract<ClientMsg, { type: 'startSong' }>>().toEqualTypeOf<{
+    type: 'startSong'
+  }>()
+})
+
+test('songStart 广播形状(房间同步开始)', () => {
+  expectTypeOf<Extract<ServerMsg, { type: 'songStart' }>>().toEqualTypeOf<{
+    type: 'songStart'
+    beat: number
+    bpi: number
+  }>()
+})
+
 test('welcome 消息形状(带房间码)', () => {
   expectTypeOf<Extract<ServerMsg, { type: 'welcome' }>>().toEqualTypeOf<{
     type: 'welcome'
