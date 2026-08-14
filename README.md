@@ -47,6 +47,11 @@ npm run dev:client
 
 > ⚠️ **端口 8080 冲突**：本机若有其他服务占用 8080，前端会连上不认识的协议而卡在 Connecting。E2E 使用 8081 端口规避（见 `client/playwright.config.ts` 注释）。前端 Server 输入框可以直接填 `ws://localhost:8081`。
 
+## 测试与 CI
+
+GitHub Actions(`.github/workflows/ci.yml`)在每次 push / PR 自动运行:
+类型检查 → lint → 单元测试 → 生产构建 → E2E(11 个场景)。
+
 ## 测试
 
 ```bash

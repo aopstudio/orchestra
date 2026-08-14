@@ -1,0 +1,47 @@
+name: CI
+
+# 每次 push / PR 都跑全量验证: 单元测试、类型检查、lint、生产构建、E2E。
+# 对应 plan-v2 的「全程保持单元测试/E2E/类型检查通过」目标。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright chromium
+        run: npx playwright install chromium
+        working-directory: client
+
+      - name: Typecheck (all workspaces)
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Production build
+        run: npm run build
+
+      - name: E2E (room / guide / ensemble / cross-city relay / studio / share)
+        run: npm run e2e -w client
+        working-directory: client
+        env:
+          CI: 'true'

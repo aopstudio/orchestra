@@ -18,6 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { isValidSong, type InstrumentId } from '@orchestra/shared'
 import { WsClient, type WsHandlers } from './net/wsClient'
+import { createProtocolHandlers } from './net/handlers'
 import { createBeatGrid, type BeatGrid } from './sync/beatGrid'
 import { estimateOffset, type SyncSample } from './sync/clockOffset'
 import { LookaheadScheduler } from './audio/scheduler'
@@ -26,7 +27,7 @@ import { createInstruments, type Instruments } from './audio/instruments'
 import { playReplay } from './audio/replay'
 import { KeyState, drumNoteForKey, noteForKey } from './input/keyboard'
 import { connectMidi, type MidiConnection } from './input/midi'
-import JamPad, { PAD_HIGH_NOTE, PAD_LOW_NOTE } from './ui/JamPad'
+import JamPad from './ui/JamPad'
 import GuideTicker from './ui/GuideTicker'
 import DrumPad from './ui/DrumPad'
 import ScoreView from './ui/ScoreView'
@@ -42,7 +43,6 @@ import StatusPanel, { type ConnState, type Peer } from './ui/StatusPanel'
 import MixerPanel from './ui/MixerPanel'
 import SongPicker from './ui/SongPicker'
 import JudgeBadge, { type JudgeBadgeData } from './ui/JudgeBadge'
-import { advanceGuide } from './guide/guideEngine'
 import { nextBarBoundary } from './guide/barBoundary'
 import { Judge, type JudgeStats } from './guide/judge'
 import { SONGS, type Song, type SongNote, type SongPart } from './songs/songs'
@@ -400,6 +400,21 @@ export default function App() {
     runSyncRef.current = runSync
   })
 
+  /**
+   * 启动倒计时: 锚定到最近的小节边界(≥ COUNTDOWN_BEATS 拍后),让歌曲第一拍
+   * 落在节拍器重音上。必须在 latestBeatRef 已知(至少收到一条时钟广播)后调用。
+   * 定义在 handlers 之前,以便作为依赖传入 createProtocolHandlers(避免 TDZ)。
+   */
+  const startCountdown = (): void => {
+    const now = latestBeatRef.current
+    if (now === null) return
+    const until = nextBarBoundary(now, bpiRef.current, COUNTDOWN_BEATS)
+    countdownUntilRef.current = until
+    const total = Math.ceil(until - now)
+    setCountdownBeatsLeft(total)
+    setPrepBeats(total)
+  }
+
   // --- protocol handlers -----------------------------------------------------
   // Created once; every handler reads pipeline objects through refs so a
   // stale closure can never touch the wrong (or nulled) pipeline.
@@ -410,212 +425,50 @@ export default function App() {
   // (they must not be recreated per render/reconnect). This is the documented
   // React lazy-ref-init pattern; react-hooks/refs flags it conservatively, and
   // the whole room pipeline depends on the single-instance behaviour.
-  /* eslint-disable react-hooks/refs, react-hooks/purity -- intentional once-created handler ref */
+  /* eslint-disable react-hooks/refs -- intentional once-created handler ref */
   if (handlersRef.current === null) {
-    handlersRef.current = {
-      onWelcome: (msg) => {
-        setMyId(msg.id)
-        setRoomCode(msg.roomCode)
-        setBpm(msg.bpm)
-        setBpi(msg.bpi)
-        bpmRef.current = msg.bpm
-        bpiRef.current = msg.bpi
-        // A welcome means the server accepted us into the room; this is the
-        // single transition into the connected state (drives the badge, the
-        // JamPad enabled flag, and the keyboard keydown gate).
-        setConnState('connected')
-        // A welcome means a fresh room session — start the peer roster over.
-        setPeers([])
-        setError(null)
-        void (async () => {
-          try {
-            await startAudioPipeline(msg.bpm)
-            await runSyncRef.current()
-          } catch (err) {
-            console.warn('[App] audio pipeline failed:', err)
-          }
-          // Instrument samples load from a CDN; do not block sync on them.
-          void ensureInstruments()
-            .then(() => {
-              // E2E hook: instruments ready (only when the ?e2e flag is set).
-              if (window.location.search.includes('e2e')) {
-                const hook = window as unknown as { __orchInstrumentsReady?: boolean }
-                hook.__orchInstrumentsReady = true
-              }
-            })
-            .catch((err) => console.warn('[App] instrument load failed:', err))
-        })()
-      },
-
-      onRoomError: (msg) => {
-        // 房间不存在/已满: 保持 socket 断开以便用户改码重试。
-        // 关闭 ws 后 handleConnect 才能创建新连接(它对已 OPEN/CONNECTING
-        // 的 socket 会直接返回)。
-        console.warn('[App] room error:', msg.message)
-        wsRef.current?.close()
-        wsRef.current = null
-        setError(msg.message)
-        setConnState('idle')
-      },
-
-      onPeerJoined: (msg) => {
-        setPeers((prev) =>
-          prev.some((p) => p.id === msg.id) ? prev : [...prev, { id: msg.id, name: msg.name }],
-        )
-      },
-
-      onPeerLeft: (msg) => {
-        setPeers((prev) => prev.filter((p) => p.id !== msg.id))
-      },
-
-      onClock: (msg) => {
-        latestBeatRef.current = msg.beat
-        setClockBeat({ beat: msg.beat, tempo: msg.tempo })
-        // The clock broadcast carries bpi: pick it up defensively so a late
-        // joiner who missed the welcome/bpi echo still has the right meter.
-        if (Number.isFinite(msg.bpi)) {
-          setBpi(msg.bpi)
-          bpiRef.current = msg.bpi
-        }
-        // Re-anchor the metronome grid to the server's next beat boundary so
-        // the accent PHYSICALLY lands on beat 1 (not just the displayed label).
-        // The server said beat `msg.beat` at `msg.serverTime`; the next integer
-        // beat boundary is ceil(beat), at serverTime + (ceil - beat) * ms/beat.
-        const grid = beatGridRef.current
-        if (grid !== null && metronomeRef.current !== null) {
-          const msPerBeat = 60000 / msg.tempo
-          const nextBeat = Math.ceil(msg.beat)
-          const nextBeatServerTime = msg.serverTime + (nextBeat - msg.beat) * msPerBeat
-          metronomeRef.current.syncToServer(
-            grid.toAudioTime(nextBeatServerTime),
-            nextBeat % msg.bpi,
-          )
-        }
-        // Record the clock anchor at a LOCAL monotonic timestamp so the ticker
-        // can sweep continuously between broadcasts (performance.now advances
-        // even while the AudioContext is suspended, unlike the audio clock).
-        beatAnchorRef.current = {
-          beat: msg.beat,
-          localTime: performance.now(),
-          tempo: msg.tempo,
-        }
-
-        // --- Phase 1 guide + judgment, driven by the shared server beat ---
-        // songBeat is the server beat relative to when the part was armed, so
-        // every player's guide sits on the same absolute grid.
-        const part = selectedPartRef.current
-        // 若武装发生在第一条时钟广播之前(latestBeat 未知),现在补启动倒计时
-        if (pendingArmRef.current && latestBeatRef.current !== null) {
-          pendingArmRef.current = false
-          startCountdown()
-        }
-        // Countdown: if a start was requested, show the preparation beats and
-        // only begin the song (anchor songStartBeat) once the countdown elapses.
-        const countdownUntil = countdownUntilRef.current
-        if (countdownUntil !== null) {
-          const beatsLeft = countdownUntil - msg.beat
-          if (beatsLeft > 0) {
-            setCountdownBeatsLeft(Math.ceil(beatsLeft))
-            setSongBeatState(null)
-            return
-          }
-          countdownUntilRef.current = null
-          songStartBeatRef.current = countdownUntil
-          setCountdownBeatsLeft(null)
-        }
-        const startBeat = songStartBeatRef.current
-        if (part !== null && startBeat !== null) {
-          const songBeat = msg.beat - startBeat
-          setSongBeatState(songBeat)
-          const win = advanceGuide(part.notes, songBeat, { lookaheadBeats: 4 })
-          // The engine returns SongNote[]; the pad highlights by MIDI note.
-          setGuideCurrent(new Set(win.current.map((n) => n.note)))
-          setGuideUpcoming(new Set(win.upcoming.map((n) => n.note)))
-          setGuideProgress(win.progress)
-          const judge = judgeRef.current
-          if (judge !== null && judgeEnabledRef.current) {
-            judge.advance(songBeat)
-            setJudgeStats(judge.stats())
-          }
-        }
-      },
-
-      onTempo: (msg) => {
-        // Any player's tempo change (including our own echo) is authoritative:
-        // re-lock the metronome and beat grid so every client hears the same
-        // speed. The metronome picks the new bpm up from its next beat.
-        setBpm(msg.bpm)
-        bpmRef.current = msg.bpm
-        metronomeRef.current?.setBpm(msg.bpm)
-        beatGridRef.current?.setTempo(msg.bpm)
-      },
-
-      onBpi: (msg) => {
-        // Any player's meter change (including our own echo) is authoritative.
-        // The server re-anchors the bar so the next beat IS beat 1 of the new
-        // meter (real-metronome semantics), then immediately pushes a clock;
-        // onClock's syncToServer re-anchors the audible grid to it.
-        setBpi(msg.bpi)
-        bpiRef.current = msg.bpi
-        metronomeRef.current?.setBeatsPerBar(msg.bpi)
-      },
-
-      onNote: (msg) => {
-        // E2E hook: count remote notes received (only when the ?e2e flag is set).
-        if (window.location.search.includes('e2e')) {
-          const hook = window as unknown as { __orchNotes?: number }
-          hook.__orchNotes = (hook.__orchNotes ?? 0) + 1
-        }
-        const inst = instrumentsRef.current
-        const sched = schedulerRef.current
-        if (inst === null || sched === null) return
-        // Convert the server-stamped time onto the local audio clock; before
-        // the first sync completes, fall back to playing immediately.
-        const grid = beatGridRef.current
-        const at = grid === null ? 0 : grid.toAudioTime(msg.serverTime) - sched.currentTime
-        // 按发送者的乐器回放,保证鼓手/贝斯手/键盘手在每个人耳中都是自己的音色。
-        inst.play(msg.instrument, msg.note, msg.velocity, at)
-
-        // Highlight the same key on the visible pad, but only for notes that
-        // exist on it — the sound above plays for every note, remoteNotes is
-        // a purely visual concern.
-        if (msg.note >= PAD_LOW_NOTE && msg.note <= PAD_HIGH_NOTE) {
-          setRemoteNotes((prev) => (prev.has(msg.note) ? prev : new Set(prev).add(msg.note)))
-        }
-      },
-
-      onNoteOff: (msg) => {
-        setRemoteNotes((prev) => {
-          if (!prev.has(msg.note)) return prev
-          const next = new Set(prev)
-          next.delete(msg.note)
-          return next
-        })
-      },
-
-      onSyncAck: (msg) => {
-        const resolve = pendingSyncRef.current
-        if (resolve !== null) {
-          pendingSyncRef.current = null
-          resolve({ t1: msg.t1, t2: msg.t2, t3: msg.t3, t4: performance.now() })
-        }
-      },
-
-      onSongStart: (msg) => {
-        // 房间同步开始(Phase 1 合奏): 服务器广播统一的开始边界拍。
-        // 已武装且尚未开始的玩家,把自己的倒计时锚到该边界,全房间同一拍起奏。
-        const part = selectedPartRef.current
-        if (part === null || songStartBeatRef.current !== null) return
-        countdownUntilRef.current = msg.beat
-        const now = latestBeatRef.current
-        const total = now === null ? Math.max(1, msg.beat) : Math.max(1, Math.ceil(msg.beat - now))
-        setCountdownBeatsLeft(total)
-        setPrepBeats(total)
-        setSongBeatState(null)
-      },
-    }
+    // 一次性创建协议处理器(见 net/handlers.ts): 所有 handler 只经 refs/setters
+    // 访问管线,首次渲染后永不重建。
+    handlersRef.current = createProtocolHandlers({
+      wsRef,
+      instrumentsRef,
+      schedulerRef,
+      metronomeRef,
+      beatGridRef,
+      bpmRef,
+      bpiRef,
+      latestBeatRef,
+      beatAnchorRef,
+      countdownUntilRef,
+      songStartBeatRef,
+      selectedPartRef,
+      judgeRef,
+      judgeEnabledRef,
+      pendingArmRef,
+      pendingSyncRef,
+      runSyncRef,
+      startAudioPipeline,
+      ensureInstruments,
+      startCountdown,
+      setMyId,
+      setRoomCode,
+      setBpm,
+      setBpi,
+      setConnState,
+      setPeers,
+      setError,
+      setClockBeat,
+      setCountdownBeatsLeft,
+      setPrepBeats,
+      setSongBeatState,
+      setGuideCurrent,
+      setGuideUpcoming,
+      setGuideProgress,
+      setJudgeStats,
+      setRemoteNotes,
+    })
   }
-  /* eslint-enable react-hooks/refs, react-hooks/purity */
+  /* eslint-enable react-hooks/refs */
 
   // --- user interactions -----------------------------------------------------
 
@@ -1066,20 +919,6 @@ export default function App() {
   }
 
   /** Arm a part: start a COUNTDOWN, then the song begins (t=0 = armBeat + countdown). */
-  /**
-   * 启动倒计时: 锚定到最近的小节边界(≥ COUNTDOWN_BEATS 拍后),让歌曲第一拍
-   * 落在节拍器重音上。必须在 latestBeatRef 已知(至少收到一条时钟广播)后调用。
-   */
-  const startCountdown = (): void => {
-    const now = latestBeatRef.current
-    if (now === null) return
-    const until = nextBarBoundary(now, bpiRef.current, COUNTDOWN_BEATS)
-    countdownUntilRef.current = until
-    const total = Math.ceil(until - now)
-    setCountdownBeatsLeft(total)
-    setPrepBeats(total)
-  }
-
   const handleSelectPart = (partId: string): void => {
     if (selectedSong === null) return
     const part = selectedSong.parts.find((p) => p.id === partId) ?? null
