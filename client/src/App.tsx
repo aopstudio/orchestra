@@ -23,6 +23,7 @@ import { estimateOffset, type SyncSample } from './sync/clockOffset'
 import { LookaheadScheduler } from './audio/scheduler'
 import { Metronome } from './audio/metronome'
 import { createInstruments, type Instruments } from './audio/instruments'
+import { playReplay } from './audio/replay'
 import { KeyState, drumNoteForKey, noteForKey } from './input/keyboard'
 import { connectMidi, type MidiConnection } from './input/midi'
 import JamPad, { PAD_HIGH_NOTE, PAD_LOW_NOTE } from './ui/JamPad'
@@ -918,6 +919,17 @@ export default function App() {
     setError(null)
   }
 
+  /** 回放最近一次录制(Phase 3): 按录制时的乐器/曲速经音频管线播放。 */
+  const handleReplayRecording = (): void => {
+    const rec = recordingRef.current
+    const inst = instrumentsRef.current
+    const ctx = ctxRef.current
+    if (rec === null || inst === null || ctx === null || rec.notes.length === 0) return
+    // 使用分享目标里的乐器(保存后即固定);未保存时用当前乐器
+    const instrument = shareSong?.parts[0]?.instrument ?? currentInstrument()
+    playReplay(ctx, inst, rec.notes, bpmRef.current, instrument)
+  }
+
   /** 导入朋友分享的 JSON 曲目;成功返回 true。 */
   const handleImportSong = (text: string): boolean => {
     const song = importSongJson(text)
@@ -1351,6 +1363,7 @@ export default function App() {
             onShare={() => handleShareSong()}
             shareId={shareId}
             onFetchShare={handleFetchShare}
+            onReplay={handleReplayRecording}
           />
 
           <section className="panel">

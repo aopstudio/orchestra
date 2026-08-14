@@ -29,6 +29,8 @@ export interface SongStudioProps {
   shareId: string | null
   /** 凭分享码取回曲目;返回是否成功。 */
   onFetchShare: (code: string) => Promise<boolean>
+  /** 回放最近一次录制。 */
+  onReplay: () => void
 }
 
 export default function SongStudio({
@@ -43,6 +45,7 @@ export default function SongStudio({
   onShare,
   shareId,
   onFetchShare,
+  onReplay,
 }: SongStudioProps) {
   const [title, setTitle] = useState('我的新曲')
   const [importText, setImportText] = useState('')
@@ -106,6 +109,14 @@ export default function SongStudio({
             onClick={() => onSave(title.trim() === '' ? '未命名曲目' : title.trim())}
           >
             保存到曲库
+          </button>
+          <button
+            type="button"
+            className="btn btn-replay"
+            data-testid="replay-btn"
+            onClick={onReplay}
+          >
+            ▶ 回放
           </button>
         </div>
       )}
