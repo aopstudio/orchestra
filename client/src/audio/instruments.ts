@@ -54,16 +54,27 @@ export interface Instruments {
 const LOAD_TIMEOUT_MS = 10_000
 
 /**
- * 默认持续时长(秒): 按住期间的延音上限。松开后由 stop 提前终止;
- * 该值只兜底"没收到 noteOff"的情况。
+ * 衰减型乐器(钢琴/贝斯): 按下后自然指数衰减,即使不松手也会越来越轻;
+ * 松手只是提前截断。NATURAL_RING 是按住时的自然响铃时长。
  */
+const NATURAL_RING: Record<InstrumentId, number> = {
+  piano: 2.5,
+  bass: 1.2,
+  drums: 0.4,
+  trumpet: 0, // 持续型,不用
+  violin: 0, // 持续型,不用
+}
+
+/** 持续型乐器(小号/提琴): 按住期间保持响度,松开才停止(延音上限兜底)。 */
 const DEFAULT_SUSTAIN: Record<InstrumentId, number> = {
-  piano: 4,
-  bass: 1.5,
-  drums: 0.4, // 一击型,不使用
+  piano: 0, // 衰减型,不用
+  bass: 0, // 衰减型,不用
+  drums: 0.4,
   trumpet: 1.2,
   violin: 4,
 }
+
+const DECAYING: ReadonlySet<InstrumentId> = new Set(['piano', 'bass'])
 
 /** GM drum notes (35–51) → closest TR-808 group alias. */
 const GM_DRUM_TO_808: Record<number, string> = {
@@ -205,7 +216,9 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
         return null
       }
 
-      const sustain = durationSec ?? DEFAULT_SUSTAIN[instrument]
+      const decaying = DECAYING.has(instrument)
+      // 衰减型: 按住时按自然响铃时长发声(越来越轻);持续型: 按住保持响度
+      const ring = durationSec ?? (decaying ? NATURAL_RING[instrument] : DEFAULT_SUSTAIN[instrument])
       const key = voiceKey(instrument, note)
       // 理论上同键不会重叠(受 held 去重保护);防御性停掉旧声音
       activeVoices.get(key)?.()
@@ -221,7 +234,10 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
               : piano
       if (sampled !== null) {
         try {
-          stop = startSampled(sampled, note, velocity, time, sustain)
+          // 采样路径: 衰减型给一个长上限(让采样自带的自然衰减完整播放),
+          // 持续型按 ring 控制;显式 durationSec(回放)总是直接采用。
+          const sampledDuration = durationSec !== undefined ? durationSec : decaying ? 8 : ring
+          stop = startSampled(sampled, note, velocity, time, sampledDuration)
         } catch (err) {
           console.warn(`Soundfont ${instrument} start failed (switching to fallback):`, err)
           stop = null
@@ -229,13 +245,13 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
       }
       if (stop === null) {
         if (instrument === 'bass') {
-          stop = fallbackBass(ctx, note, velocity, time, bus, sustain)
+          stop = fallbackBass(ctx, note, velocity, time, bus, ring)
         } else if (instrument === 'trumpet') {
-          stop = fallbackTrumpet(ctx, note, velocity, time, bus, sustain)
+          stop = fallbackTrumpet(ctx, note, velocity, time, bus, ring)
         } else if (instrument === 'violin') {
-          stop = fallbackViolin(ctx, note, velocity, time, bus, sustain)
+          stop = fallbackViolin(ctx, note, velocity, time, bus, ring)
         } else {
-          stop = fallbackPiano(ctx, note, velocity, time, bus, sustain)
+          stop = fallbackPiano(ctx, note, velocity, time, bus, ring)
         }
       }
 
@@ -293,6 +309,8 @@ interface ToneOptions {
   at: number
   duration: number
   peak: number
+  /** 快速衰减目标(可选): 起音后先落到该值再指数尾巴消散——钢琴等衰减型。 */
+  decayTo?: number
 }
 
 /**
@@ -312,6 +330,10 @@ function playTone(ctx: AudioContext, opts: ToneOptions, out: AudioNode): NoteSto
   }
   gain.gain.setValueAtTime(0, t0)
   gain.gain.linearRampToValueAtTime(opts.peak, t0 + 0.005)
+  if (opts.decayTo !== undefined) {
+    // 衰减型: 0.25s 内明显回落(钢琴"按下即变轻"的听感),再指数尾巴消散
+    gain.gain.exponentialRampToValueAtTime(Math.max(opts.decayTo, 0.0001), t0 + 0.25)
+  }
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + opts.duration)
   osc.connect(gain)
   gain.connect(out)
@@ -380,6 +402,7 @@ function combineStops(stops: NoteStopFn[]): NoteStopFn {
   }
 }
 
+/** 合成钢琴: 衰减型——快速起音后自然指数衰减,即使不松手也越来越轻。 */
 function fallbackPiano(
   ctx: AudioContext,
   note: number,
@@ -390,15 +413,34 @@ function fallbackPiano(
 ): NoteStopFn {
   const vel = velocity / 127
   const freq = midiToFrequency(note)
-  return combineStops([
-    playTone(ctx, { type: 'triangle', frequency: freq, at, duration: durationSec, peak: 0.25 * vel }, out),
-    // Subtle octave harmonic for a slightly richer tone.
-    playTone(
-      ctx,
-      { type: 'sawtooth', frequency: freq * 2.001, at, duration: durationSec * 0.8, peak: 0.07 * vel },
-      out,
-    ),
-  ])
+  // 两段衰减: 0.25s 内先明显回落(≈ -16dB),再指数尾巴自然消散,
+  // 还原钢琴"按下即开始变轻"的手感。
+  const body = playTone(
+    ctx,
+    {
+      type: 'triangle',
+      frequency: freq,
+      at,
+      duration: durationSec,
+      peak: 0.25 * vel,
+      decayTo: 0.04 * vel,
+    },
+    out,
+  )
+  // Subtle octave harmonic for a slightly richer tone (同样快速衰减)。
+  const harmonic = playTone(
+    ctx,
+    {
+      type: 'sawtooth',
+      frequency: freq * 2.001,
+      at,
+      duration: durationSec * 0.8,
+      peak: 0.07 * vel,
+      decayTo: 0.012 * vel,
+    },
+    out,
+  )
+  return combineStops([body, harmonic])
 }
 
 /** 合成贝斯: 锯齿波 + 低通滤波,模拟电贝斯拨弦;松开即止。 */
@@ -424,6 +466,8 @@ function fallbackBass(
   filter.Q.value = 2
   gain.gain.setValueAtTime(0, t0)
   gain.gain.linearRampToValueAtTime(0.32 * vel, t0 + 0.01)
+  // 拨弦感: 快速回落后再自然消散(贝斯也是衰减型)
+  gain.gain.exponentialRampToValueAtTime(0.06 * vel, t0 + 0.12)
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + durationSec)
   osc.connect(filter)
   filter.connect(gain)
