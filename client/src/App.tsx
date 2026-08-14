@@ -231,6 +231,8 @@ export default function App() {
   const pendingSyncRef = useRef<((sample: SyncSample) => void) | null>(null)
   const syncingRef = useRef(false)
   const keyStateRef = useRef<KeyState>(new KeyState())
+  /** 本地活动声音: `${instrument}:${note}` → 停止函数(松开时调用)。 */
+  const localVoicesRef = useRef<Map<string, () => void>>(new Map())
   /** MIDI 连接实例(卸载时断开)。 */
   const midiConnectionRef = useRef<MidiConnection | null>(null)
   /** MIDI notes currently held (keyboard or mouse) — dedupes noteOn across inputs. */
@@ -577,7 +579,8 @@ export default function App() {
       const arpeggio = [60, 64, 67, 72, 67, 64]
       const start = ctx.currentTime + LOCAL_LOOKAHEAD_SEC
       arpeggio.forEach((note, i) => {
-        inst.play('piano', note, 100, start + i * 0.12 - ctx.currentTime)
+        // 试音用短时值,避免长延音叠在一起
+        inst.play('piano', note, 100, start + i * 0.12 - ctx.currentTime, 0.35)
       })
     } catch (err) {
       console.warn('[App] sound test failed:', err)
@@ -666,7 +669,13 @@ export default function App() {
     const keydownAt = performance.now()
     const targetAudio = sched.currentTime + LOCAL_LOOKAHEAD_SEC
     const instrument = currentInstrument()
-    inst.play(instrument, note, velocity, targetAudio - ctx.currentTime)
+    // 按住延音: 记录停止函数,松开(noteOff)时调用
+    const stop = inst.play(instrument, note, velocity, targetAudio - ctx.currentTime)
+    if (stop !== null) {
+      const key = `${instrument}:${note}`
+      localVoicesRef.current.get(key)?.()
+      localVoicesRef.current.set(key, stop)
+    }
 
     // ① key→sound latency readout: how far the audio output clock has moved
     // past the keydown instant (≈ the hardware input→output latency).
@@ -695,6 +704,11 @@ export default function App() {
       next.delete(note)
       return next
     })
+    // 松开即止: 停止本地该音色的延音
+    const instrument = currentInstrument()
+    const key = `${instrument}:${note}`
+    localVoicesRef.current.get(key)?.()
+    localVoicesRef.current.delete(key)
     wsRef.current?.sendNoteOff(note)
   }
 

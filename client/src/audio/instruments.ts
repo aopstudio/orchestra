@@ -2,6 +2,13 @@
  * Instrument wrappers around smplr (sampled piano / bass + TR-808 drums) with
  * a built-in WebAudio oscillator fallback so the demo ALWAYS makes sound.
  *
+ * 延音语义(Phase 1 修正): 按下即响、**松开即止**——
+ * - `play()` 返回一个停止函数,调用方(本地 noteOff / 远端 noteOff)松开时调用;
+ *   期间持续延音(默认持续到 DEFAULT_SUSTAIN,防止漏放导致无限响)。
+ * - 鼓等一击型乐器返回 null(一次性敲击,无需停止)。
+ * - smplr 采样路径: `start()` 返回的 StopFn 即停止函数。
+ * - 合成降级路径: 包络改为长持续 + 快速释放(增益归零,幂等)。
+ *
  * smplr v1 API notes (verified against node_modules/smplr@1.0.0):
  * - `Soundfont` and `DrumMachine` are callable factories, not classes:
  *   `Soundfont(ctx, opts)` / `DrumMachine(ctx, opts)` — no `new`.
@@ -21,9 +28,23 @@
 import { Soundfont, DrumMachine } from 'smplr'
 import type { InstrumentId } from '@orchestra/shared'
 
+/** 停止函数: 幂等,松开音符时调用。 */
+export type NoteStopFn = () => void
+
 export interface Instruments {
-  /** Play a note (MIDI 0–127) on the given instrument at `ctx.currentTime + at` seconds. */
-  play(instrument: InstrumentId, note: number, velocity: number, at: number): void
+  /**
+   * 播放一个音。按住期间延音,松开时调用返回的停止函数;
+   * 一击型(鼓)返回 null。`durationSec` 可覆盖默认持续时长(回放等用)。
+   */
+  play(
+    instrument: InstrumentId,
+    note: number,
+    velocity: number,
+    at: number,
+    durationSec?: number,
+  ): NoteStopFn | null
+  /** 停止某乐器某音当前活动的声音(供 noteOff 使用)。 */
+  stop(instrument: InstrumentId, note: number): void
   /** Play a GM drum note (35–51) at `ctx.currentTime + at` seconds. */
   drum(note: number, velocity: number, at: number): void
   /** 设置某乐器的混音音量(0..1,作用于所有本地与远端该乐器的声音)。 */
@@ -31,7 +52,18 @@ export interface Instruments {
 }
 
 const LOAD_TIMEOUT_MS = 10_000
-const NOTE_DURATION = 1.5
+
+/**
+ * 默认持续时长(秒): 按住期间的延音上限。松开后由 stop 提前终止;
+ * 该值只兜底"没收到 noteOff"的情况。
+ */
+const DEFAULT_SUSTAIN: Record<InstrumentId, number> = {
+  piano: 4,
+  bass: 1.5,
+  drums: 0.4, // 一击型,不使用
+  trumpet: 1.2,
+  violin: 4,
+}
 
 /** GM drum notes (35–51) → closest TR-808 group alias. */
 const GM_DRUM_TO_808: Record<number, string> = {
@@ -139,33 +171,46 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
 
   type SoundfontInstance = ReturnType<typeof Soundfont>
 
+  /** 采样路径: 返回 smplr 的 StopFn 作为停止函数。 */
   function startSampled(
     inst: SoundfontInstance,
     note: number,
     velocity: number,
     time: number,
-  ): void {
-    inst.start({ note, velocity, time, duration: NOTE_DURATION })
+    duration: number,
+  ): NoteStopFn {
+    return inst.start({ note, velocity, time, duration })
   }
 
+  /** 当前活动声音: `${instrument}:${note}` → 停止函数。 */
+  const activeVoices = new Map<string, NoteStopFn>()
+  const voiceKey = (instrument: InstrumentId, note: number): string => `${instrument}:${note}`
+
   return {
-    play(instrument, note, velocity, at) {
+    play(instrument, note, velocity, at, durationSec) {
       const time = ctx.currentTime + at
       const bus = buses[instrument]
       if (instrument === 'drums') {
-        // drums 走 GM 鼓图
+        // 一击型,无延音/停止
         if (drums !== null) {
           try {
             const target = GM_DRUM_TO_808[note] ?? note
             drums.start({ note: target, velocity, time })
-            return
+            return null
           } catch (err) {
             console.warn('DrumMachine start failed (switching to fallback):', err)
           }
         }
         fallbackDrum(ctx, note, velocity, time, bus)
-        return
+        return null
       }
+
+      const sustain = durationSec ?? DEFAULT_SUSTAIN[instrument]
+      const key = voiceKey(instrument, note)
+      // 理论上同键不会重叠(受 held 去重保护);防御性停掉旧声音
+      activeVoices.get(key)?.()
+
+      let stop: NoteStopFn | null = null
       const sampled =
         instrument === 'bass'
           ? bass
@@ -176,22 +221,40 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
               : piano
       if (sampled !== null) {
         try {
-          startSampled(sampled, note, velocity, time)
-          return
+          stop = startSampled(sampled, note, velocity, time, sustain)
         } catch (err) {
           console.warn(`Soundfont ${instrument} start failed (switching to fallback):`, err)
+          stop = null
         }
       }
-      if (instrument === 'bass') {
-        fallbackBass(ctx, note, velocity, time, bus)
-      } else if (instrument === 'trumpet') {
-        fallbackTrumpet(ctx, note, velocity, time, bus)
-      } else if (instrument === 'violin') {
-        fallbackViolin(ctx, note, velocity, time, bus)
-      } else {
-        fallbackPiano(ctx, note, velocity, time, bus)
+      if (stop === null) {
+        if (instrument === 'bass') {
+          stop = fallbackBass(ctx, note, velocity, time, bus, sustain)
+        } else if (instrument === 'trumpet') {
+          stop = fallbackTrumpet(ctx, note, velocity, time, bus, sustain)
+        } else if (instrument === 'violin') {
+          stop = fallbackViolin(ctx, note, velocity, time, bus, sustain)
+        } else {
+          stop = fallbackPiano(ctx, note, velocity, time, bus, sustain)
+        }
+      }
+
+      activeVoices.set(key, stop)
+      return () => {
+        stop()
+        activeVoices.delete(key)
       }
     },
+
+    stop(instrument, note) {
+      const key = voiceKey(instrument, note)
+      const s = activeVoices.get(key)
+      if (s !== undefined) {
+        s()
+        activeVoices.delete(key)
+      }
+    },
+
     drum(note, velocity, at) {
       const time = ctx.currentTime + at
       if (drums !== null) {
@@ -205,6 +268,7 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
       }
       fallbackDrum(ctx, note, velocity, time, buses.drums)
     },
+
     setInstrumentVolume(instrument, volume) {
       const clamped = clamp01(volume)
       // 平滑过渡,避免滑块拖动时爆音
@@ -231,9 +295,13 @@ interface ToneOptions {
   peak: number
 }
 
-/** Oscillator + gain envelope (attack ~5ms, exponential decay). */
-function playTone(ctx: AudioContext, opts: ToneOptions, out: AudioNode): void {
-  if (ctx.state === 'closed') return
+/**
+ * Oscillator + gain envelope (attack ~5ms, exponential decay).
+ * 返回幂等停止函数: 快速把增益归零(取消既有包络),不二次调用 osc.stop
+ * (osc 已在调度时刻排定自动停止,提前静音即可,避免 double-stop 异常)。
+ */
+function playTone(ctx: AudioContext, opts: ToneOptions, out: AudioNode): NoteStopFn {
+  if (ctx.state === 'closed') return () => {}
   const t0 = Math.max(opts.at, ctx.currentTime)
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
@@ -249,6 +317,16 @@ function playTone(ctx: AudioContext, opts: ToneOptions, out: AudioNode): void {
   gain.connect(out)
   osc.start(t0)
   osc.stop(t0 + opts.duration + 0.05)
+
+  let stopped = false
+  return () => {
+    if (stopped || ctx.state === 'closed') return
+    stopped = true
+    const now = Math.max(ctx.currentTime, t0)
+    // 快速释放: 取消之后的包络事件,增益在 ~20ms 时间常数内归零
+    gain.gain.cancelScheduledValues(now)
+    gain.gain.setTargetAtTime(0, now, 0.02)
+  }
 }
 
 interface NoiseOptions {
@@ -274,7 +352,7 @@ function getNoiseBuffer(ctx: AudioContext): AudioBuffer {
   return noiseBuffer
 }
 
-/** Filtered noise burst (hats, snare, clap, cymbals). */
+/** Filtered noise burst (hats, snare, clap, cymbals). 一击型,无需停止。 */
 function playNoise(ctx: AudioContext, opts: NoiseOptions, out: AudioNode): void {
   if (ctx.state === 'closed') return
   const t0 = Math.max(opts.at, ctx.currentTime)
@@ -295,30 +373,47 @@ function playNoise(ctx: AudioContext, opts: NoiseOptions, out: AudioNode): void 
   source.stop(t0 + opts.duration + 0.05)
 }
 
-function fallbackPiano(ctx: AudioContext, note: number, velocity: number, at: number, out: AudioNode): void {
-  const vel = velocity / 127
-  const freq = midiToFrequency(note)
-  playTone(ctx, { type: 'triangle', frequency: freq, at, duration: 1.0, peak: 0.25 * vel }, out)
-  // Subtle octave harmonic for a slightly richer tone.
-  playTone(
-    ctx,
-    { type: 'sawtooth', frequency: freq * 2.001, at, duration: 0.6, peak: 0.07 * vel },
-    out,
-  )
+/** 把多个停止函数合并为一个(任一音色部件的释放都生效)。 */
+function combineStops(stops: NoteStopFn[]): NoteStopFn {
+  return () => {
+    for (const s of stops) s()
+  }
 }
 
-/** 合成贝斯: 锯齿波 + 低通滤波 + 短时值,模拟电贝斯拨弦。 */
+function fallbackPiano(
+  ctx: AudioContext,
+  note: number,
+  velocity: number,
+  at: number,
+  out: AudioNode,
+  durationSec: number,
+): NoteStopFn {
+  const vel = velocity / 127
+  const freq = midiToFrequency(note)
+  return combineStops([
+    playTone(ctx, { type: 'triangle', frequency: freq, at, duration: durationSec, peak: 0.25 * vel }, out),
+    // Subtle octave harmonic for a slightly richer tone.
+    playTone(
+      ctx,
+      { type: 'sawtooth', frequency: freq * 2.001, at, duration: durationSec * 0.8, peak: 0.07 * vel },
+      out,
+    ),
+  ])
+}
+
+/** 合成贝斯: 锯齿波 + 低通滤波,模拟电贝斯拨弦;松开即止。 */
 function fallbackBass(
   ctx: AudioContext,
   note: number,
   velocity: number,
   at: number,
   out: AudioNode,
-): void {
+  durationSec: number,
+): NoteStopFn {
   const vel = velocity / 127
   const freq = midiToFrequency(note)
   const t0 = Math.max(at, ctx.currentTime)
-  if (ctx.state === 'closed') return
+  if (ctx.state === 'closed') return () => {}
   const osc = ctx.createOscillator()
   const filter = ctx.createBiquadFilter()
   const gain = ctx.createGain()
@@ -329,26 +424,36 @@ function fallbackBass(
   filter.Q.value = 2
   gain.gain.setValueAtTime(0, t0)
   gain.gain.linearRampToValueAtTime(0.32 * vel, t0 + 0.01)
-  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55)
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + durationSec)
   osc.connect(filter)
   filter.connect(gain)
   gain.connect(out)
   osc.start(t0)
-  osc.stop(t0 + 0.65)
+  osc.stop(t0 + durationSec + 0.05)
+
+  let stopped = false
+  return () => {
+    if (stopped || ctx.state === 'closed') return
+    stopped = true
+    const now = Math.max(ctx.currentTime, t0)
+    gain.gain.cancelScheduledValues(now)
+    gain.gain.setTargetAtTime(0, now, 0.02)
+  }
 }
 
-/** 合成小号: 方波 + 带通 + 起音包络,明亮而有"号角感"。 */
+/** 合成小号: 方波 + 带通 + 起音包络,明亮而有"号角感";松开即止。 */
 function fallbackTrumpet(
   ctx: AudioContext,
   note: number,
   velocity: number,
   at: number,
   out: AudioNode,
-): void {
+  durationSec: number,
+): NoteStopFn {
   const vel = velocity / 127
   const freq = midiToFrequency(note)
   const t0 = Math.max(at, ctx.currentTime)
-  if (ctx.state === 'closed') return
+  if (ctx.state === 'closed') return () => {}
   const osc = ctx.createOscillator()
   const filter = ctx.createBiquadFilter()
   const gain = ctx.createGain()
@@ -359,26 +464,36 @@ function fallbackTrumpet(
   filter.Q.value = 1.5
   gain.gain.setValueAtTime(0, t0)
   gain.gain.linearRampToValueAtTime(0.28 * vel, t0 + 0.03)
-  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.5)
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + durationSec)
   osc.connect(filter)
   filter.connect(gain)
   gain.connect(out)
   osc.start(t0)
-  osc.stop(t0 + 0.55)
+  osc.stop(t0 + durationSec + 0.05)
+
+  let stopped = false
+  return () => {
+    if (stopped || ctx.state === 'closed') return
+    stopped = true
+    const now = Math.max(ctx.currentTime, t0)
+    gain.gain.cancelScheduledValues(now)
+    gain.gain.setTargetAtTime(0, now, 0.02)
+  }
 }
 
-/** 合成小提琴: 锯齿波 + 轻微颤音(LFO 调制频率),持续而温暖。 */
+/** 合成小提琴: 锯齿波 + 轻微颤音(LFO 调制频率),持续而温暖;松开即止。 */
 function fallbackViolin(
   ctx: AudioContext,
   note: number,
   velocity: number,
   at: number,
   out: AudioNode,
-): void {
+  durationSec: number,
+): NoteStopFn {
   const vel = velocity / 127
   const freq = midiToFrequency(note)
   const t0 = Math.max(at, ctx.currentTime)
-  if (ctx.state === 'closed') return
+  if (ctx.state === 'closed') return () => {}
   const osc = ctx.createOscillator()
   const lfo = ctx.createOscillator()
   const lfoGain = ctx.createGain()
@@ -395,14 +510,23 @@ function fallbackViolin(
   filter.frequency.setValueAtTime(freq * 3, t0)
   gain.gain.setValueAtTime(0, t0)
   gain.gain.linearRampToValueAtTime(0.22 * vel, t0 + 0.08)
-  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 1.2)
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + durationSec)
   osc.connect(filter)
   filter.connect(gain)
   gain.connect(out)
   osc.start(t0)
   lfo.start(t0)
-  osc.stop(t0 + 1.3)
-  lfo.stop(t0 + 1.3)
+  osc.stop(t0 + durationSec + 0.05)
+  lfo.stop(t0 + durationSec + 0.05)
+
+  let stopped = false
+  return () => {
+    if (stopped || ctx.state === 'closed') return
+    stopped = true
+    const now = Math.max(ctx.currentTime, t0)
+    gain.gain.cancelScheduledValues(now)
+    gain.gain.setTargetAtTime(0, now, 0.02)
+  }
 }
 
 function fallbackDrum(

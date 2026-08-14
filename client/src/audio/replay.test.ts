@@ -12,9 +12,9 @@ describe('buildReplaySchedule', () => {
   it('120 BPM 下每拍 0.5s,从 startTime 起排布', () => {
     const events = buildReplaySchedule(NOTES, 120, 10)
     expect(events).toEqual([
-      { audioTime: 10, note: 60, velocity: 100 },
-      { audioTime: 10.5, note: 62, velocity: 100 },
-      { audioTime: 11, note: 64, velocity: 80 },
+      { audioTime: 10, note: 60, velocity: 100, durationSec: 0.5 },
+      { audioTime: 10.5, note: 62, velocity: 100, durationSec: 0.5 },
+      { audioTime: 11, note: 64, velocity: 80, durationSec: 0.5 },
     ])
   })
 

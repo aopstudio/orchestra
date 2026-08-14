@@ -14,6 +14,8 @@ export interface ReplayEvent {
   audioTime: number
   note: number
   velocity: number
+  /** 该音的时值(秒)——回放按谱面时值发声。 */
+  durationSec: number
 }
 
 /** 把音符序列换算成绝对音频时间上的事件序列(按时间排序)。 */
@@ -29,6 +31,7 @@ export function buildReplaySchedule(
       audioTime: startTime + n.beat * secPerBeat,
       note: n.note,
       velocity: n.velocity ?? 100,
+      durationSec: (n.duration ?? 1) * secPerBeat,
     }))
     .sort((a, b) => a.audioTime - b.audioTime)
 }
@@ -56,7 +59,7 @@ export function playReplay(
   const start = ctx.currentTime + 0.15
   const events = buildReplaySchedule(notes, bpm, start)
   for (const e of events) {
-    instruments.play(instrument, e.note, e.velocity, e.audioTime - ctx.currentTime)
+    instruments.play(instrument, e.note, e.velocity, e.audioTime - ctx.currentTime, e.durationSec)
   }
   return replayDuration(notes, bpm)
 }

@@ -67,6 +67,10 @@ export interface HandlerDeps {
  * (App 用 `if (handlersRef.current === null) handlersRef.current = createProtocolHandlers(deps)`)。
  */
 export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
+  // 远端活动声音: `${from}:${note}` → 停止函数。按下时登记、松开(noteOff)时停止,
+  // 使远端听到的延音与发送者一致(按住延音、松开即止)。
+  const remoteVoices = new Map<string, () => void>()
+
   const {
     wsRef,
     instrumentsRef,
@@ -272,7 +276,13 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
       const grid = beatGridRef.current
       const at = grid === null ? 0 : grid.toAudioTime(msg.serverTime) - sched.currentTime
       // 按发送者的乐器回放,保证鼓手/贝斯手/键盘手在每个人耳中都是自己的音色。
-      inst.play(msg.instrument, msg.note, msg.velocity, at)
+      const stop = inst.play(msg.instrument, msg.note, msg.velocity, at)
+      if (stop !== null) {
+        // 按住延音: 登记停止函数;同键重按时防御性停掉旧声音
+        const key = `${msg.from}:${msg.note}`
+        remoteVoices.get(key)?.()
+        remoteVoices.set(key, stop)
+      }
 
       // Highlight the same key on the visible pad, but only for notes that
       // exist on it — the sound above plays for every note, remoteNotes is
@@ -283,6 +293,10 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
     },
 
     onNoteOff: (msg) => {
+      // 松开即止: 停止该发送者该音的延音(与发送者按住/松开一致)
+      const key = `${msg.from}:${msg.note}`
+      remoteVoices.get(key)?.()
+      remoteVoices.delete(key)
       setRemoteNotes((prev) => {
         if (!prev.has(msg.note)) return prev
         const next = new Set(prev)
