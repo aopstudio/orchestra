@@ -41,6 +41,8 @@ import {
 } from './songs/customSongs'
 import StatusPanel, { type ConnState, type Peer } from './ui/StatusPanel'
 import MixerPanel from './ui/MixerPanel'
+import LinkUpPanel from './ui/LinkUpPanel'
+import TempoPanel from './ui/TempoPanel'
 import SongPicker from './ui/SongPicker'
 import JudgeBadge, { type JudgeBadgeData } from './ui/JudgeBadge'
 import { nextBarBoundary } from './guide/barBoundary'
@@ -63,18 +65,6 @@ const COUNTDOWN_BEATS = 4
 const MIN_TEMPO_BPM = 40
 const MAX_TEMPO_BPM = 240
 
-/**
- * Time-signature presets. The server stores the NUMERATOR as bpi (beats per
- * bar); the denominator is a display concern only, so each pill sends bpi.
- */
-const TIME_SIGNATURES: ReadonlyArray<{ bpi: number; label: string }> = [
-  { bpi: 2, label: '2/4' },
-  { bpi: 3, label: '3/4' },
-  { bpi: 4, label: '4/4' },
-  { bpi: 5, label: '5/4' },
-  { bpi: 6, label: '6/8' },
-  { bpi: 7, label: '7/8' },
-]
 
 interface ClockInfo {
   offset: number
@@ -1080,7 +1070,6 @@ export default function App() {
   // --- render ----------------------------------------------------------------
 
   const displayName = name.trim() === '' ? 'player' : name.trim()
-  const tempoFillPct = ((bpm - MIN_TEMPO_BPM) / (MAX_TEMPO_BPM - MIN_TEMPO_BPM)) * 100
 
   return (
     <div className="app">
@@ -1105,99 +1094,20 @@ export default function App() {
 
       <main className="app-main">
         <div className="app-left">
-          <section className="panel">
-            <h2 className="panel-title">Link Up</h2>
-            <form
-              className="connect-form"
-              onSubmit={(e) => {
-                e.preventDefault()
-                void handleConnect('create')
-              }}
-            >
-              <label className="field">
-                <span className="field-label">Server</span>
-                <input
-                  className="field-input"
-                  value={serverUrl}
-                  onChange={(e) => setServerUrl(e.target.value)}
-                  spellCheck={false}
-                  autoComplete="off"
-                />
-              </label>
-              <label className="field">
-                <span className="field-label">Name</span>
-                <input
-                  className="field-input"
-                  data-testid="name-input"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  spellCheck={false}
-                  autoComplete="off"
-                />
-              </label>
-              <label className="field">
-                <span className="field-label">Room Code</span>
-                <input
-                  className="field-input field-input-code"
-                  data-testid="room-code-input"
-                  value={roomCodeInput}
-                  onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
-                  placeholder="加入已有房间时填写"
-                  spellCheck={false}
-                  autoComplete="off"
-                  maxLength={6}
-                />
-              </label>
-              <div className="connect-actions">
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  data-testid="create-btn"
-                  disabled={connState === 'connecting'}
-                >
-                  {connState === 'connecting' ? 'Connecting…' : '创建房间'}
-                </button>
-                <button
-                  type="button"
-                  className="btn"
-                  data-testid="join-btn"
-                  disabled={connState === 'connecting' || roomCodeInput.trim() === ''}
-                  onClick={() => void handleConnect('join')}
-                >
-                  加入房间
-                </button>
-              </div>
-              <p className="field-hint">
-                创建房间后会得到 6 位房间码;把码告诉朋友,他们填码点「加入房间」。
-              </p>
-              <div className="midi-row">
-                <button
-                  type="button"
-                  className="btn btn-midi"
-                  data-testid="midi-btn"
-                  disabled={midiState === 'connected'}
-                  onClick={() => void handleConnectMidi()}
-                >
-                  {midiState === 'connected' ? 'MIDI ✓' : '连接 MIDI 键盘'}
-                </button>
-                {midiState === 'unsupported' && (
-                  <span className="midi-hint" data-testid="midi-unsupported">
-                    此浏览器不支持 Web MIDI(建议 Chrome/Edge),可用键盘演奏
-                  </span>
-                )}
-                {midiState === 'error' && (
-                  <span className="midi-hint midi-hint-error" data-testid="midi-error">
-                    未发现 MIDI 设备或授权被拒绝
-                  </span>
-                )}
-                {midiState === 'connected' && midiDevices.length > 0 && (
-                  <span className="midi-hint" data-testid="midi-devices">
-                    已连接: {midiDevices.join('、')}
-                  </span>
-                )}
-              </div>
-            </form>
-          </section>
+          <LinkUpPanel
+            serverUrl={serverUrl}
+            onServerUrlChange={setServerUrl}
+            name={name}
+            onNameChange={setName}
+            roomCodeInput={roomCodeInput}
+            onRoomCodeInputChange={setRoomCodeInput}
+            connState={connState}
+            onCreate={() => void handleConnect('create')}
+            onJoin={() => void handleConnect('join')}
+            midiState={midiState}
+            midiDevices={midiDevices}
+            onConnectMidi={() => void handleConnectMidi()}
+          />
 
           <StatusPanel
             connState={connState}
@@ -1257,79 +1167,15 @@ export default function App() {
             onLike={handleLikeSong}
           />
 
-          <section className="panel">
-            <h2 className="panel-title">
-              <span>Tempo · Meter</span>
-              <button
-                type="button"
-                className={`metronome-toggle${metronomeOn ? ' metronome-toggle-on' : ''}`}
-                data-testid="metronome-toggle"
-                aria-pressed={metronomeOn}
-                onClick={handleMetronomeToggle}
-              >
-                <span className="metronome-toggle-dot" />
-                Metronome {metronomeOn ? 'ON' : 'OFF'}
-              </button>
-            </h2>
-            <div
-              className={
-                connState === 'connected' ? 'tempo-control' : 'tempo-control tempo-control-off'
-              }
-            >
-              <div className="tempo-head">
-                <span className="tempo-label">Room BPM</span>
-                <span className="tempo-value" data-testid="tempo-value">
-                  {bpm}
-                </span>
-              </div>
-              <input
-                type="range"
-                className="tempo-slider"
-                data-testid="tempo-slider"
-                min={MIN_TEMPO_BPM}
-                max={MAX_TEMPO_BPM}
-                step={1}
-                value={bpm}
-                disabled={connState !== 'connected'}
-                onChange={(e) => handleTempoChange(Number(e.target.value))}
-                aria-label="Metronome tempo in beats per minute"
-                style={{
-                  background: `linear-gradient(to right, var(--amber) ${tempoFillPct}%, var(--line) ${tempoFillPct}%)`,
-                }}
-              />
-              <div className="tempo-range">
-                <span>{MIN_TEMPO_BPM}</span>
-                <span>{MAX_TEMPO_BPM}</span>
-              </div>
-              <p className="tempo-hint">
-                Any player can change it — everyone in the room hears the new speed from the next
-                beat.
-              </p>
-            </div>
-            <div className={connState === 'connected' ? 'tsig-control' : 'tsig-control tsig-off'}>
-              <div className="tsig-head">
-                <span className="tsig-label">拍号 · Beats / Bar</span>
-              </div>
-              <div className="tsig-pills" role="group" aria-label="Time signature">
-                {TIME_SIGNATURES.map(({ bpi: sigBpi, label }) => (
-                  <button
-                    key={sigBpi}
-                    type="button"
-                    className={bpi === sigBpi ? 'tsig-pill tsig-pill-active' : 'tsig-pill'}
-                    data-testid={`tsig-${sigBpi}`}
-                    disabled={connState !== 'connected'}
-                    aria-pressed={bpi === sigBpi}
-                    onClick={() => handleBpiChange(sigBpi)}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <p className="tsig-hint">
-                Any player can change it — everyone re-bars from the same beat position.
-              </p>
-            </div>
-          </section>
+          <TempoPanel
+            connState={connState}
+            bpm={bpm}
+            onTempoChange={handleTempoChange}
+            bpi={bpi}
+            onBpiChange={handleBpiChange}
+            metronomeOn={metronomeOn}
+            onMetronomeToggle={handleMetronomeToggle}
+          />
         </div>
 
         <div className="pad-zone">
