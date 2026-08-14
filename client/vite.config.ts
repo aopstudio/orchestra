@@ -24,6 +24,9 @@ export default defineConfig({
         target: process.env.VITE_WS_TARGET ?? 'ws://localhost:8080',
         ws: true,
       },
+      '/api': {
+        target: process.env.VITE_WS_TARGET ?? 'http://localhost:8080',
+      },
     },
   },
 })

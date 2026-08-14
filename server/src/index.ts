@@ -5,8 +5,10 @@ import { createServer as createHttpsServer } from 'node:https'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { WebSocketServer, type RawData } from 'ws'
 import type { ClientMsg, ServerMsg } from '@orchestra/shared'
+import { isValidSong } from '@orchestra/shared'
 import { createRoomManager, type RoomEntry } from './roomManager'
 import type { RoomMember } from './room'
+import { createSongStore } from './songStore'
 import { handleStatic } from './static'
 
 const PORT = Number(process.env.PORT ?? 8080)
@@ -21,8 +23,57 @@ const manager = createRoomManager(() => performance.now())
 /** 成员 id → 所在房间;未加入房间的成员不在表中 */
 const memberRooms = new Map<string, RoomEntry>()
 
+/** 曲目分享存储(Phase 3): POST /api/songs 存曲,GET /api/songs/:code 取曲。 */
+const songStore = createSongStore()
+
 /** HTTP 请求 → 静态托管(部署模式);WebSocket 升级请求由 ws 库接管。 */
 function requestHandler(req: IncomingMessage, res: ServerResponse): void {
+  const url = new URL(req.url ?? '/', 'http://localhost')
+
+  if (url.pathname === '/api/songs' && req.method === 'POST') {
+    let body = ''
+    req.on('data', (chunk: Buffer) => {
+      body += chunk.toString()
+      if (body.length > 1_000_000) req.destroy() // 防滥用
+    })
+    req.on('end', () => {
+      try {
+        const parsed: unknown = JSON.parse(body)
+        if (!isValidSong(parsed)) {
+          res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' })
+          res.end(JSON.stringify({ error: 'invalid song' }))
+          return
+        }
+        const code = songStore.add(parsed)
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
+        res.end(JSON.stringify({ shareId: code }))
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8' })
+        res.end(JSON.stringify({ error: 'bad json' }))
+      }
+    })
+    return
+  }
+
+  const match = url.pathname.match(/^\/api\/songs\/([A-Za-z0-9]+)$/)
+  if (match !== null && req.method === 'GET') {
+    const song = songStore.get(match[1] ?? '')
+    if (song === null) {
+      res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' })
+      res.end(JSON.stringify({ error: 'not found' }))
+      return
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' })
+    res.end(JSON.stringify(song))
+    return
+  }
+
+  if (url.pathname.startsWith('/api/')) {
+    res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8' })
+    res.end(JSON.stringify({ error: 'unknown api' }))
+    return
+  }
+
   void handleStatic(req, res)
 }
 

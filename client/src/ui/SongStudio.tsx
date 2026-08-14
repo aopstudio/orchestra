@@ -23,6 +23,12 @@ export interface SongStudioProps {
   onImport: (text: string) => boolean
   /** 最近一次导出文本(用于展示与复制)。 */
   exportText: string | null
+  /** 分享到服务器(Phase 3): POST 当前曲目,返回分享码。 */
+  onShare: () => Promise<void>
+  /** 服务器返回的分享码(展示给朋友)。 */
+  shareId: string | null
+  /** 凭分享码取回曲目;返回是否成功。 */
+  onFetchShare: (code: string) => Promise<boolean>
 }
 
 export default function SongStudio({
@@ -34,10 +40,15 @@ export default function SongStudio({
   onSave,
   onImport,
   exportText,
+  onShare,
+  shareId,
+  onFetchShare,
 }: SongStudioProps) {
   const [title, setTitle] = useState('我的新曲')
   const [importText, setImportText] = useState('')
   const [importResult, setImportResult] = useState<'ok' | 'fail' | null>(null)
+  const [shareCodeInput, setShareCodeInput] = useState('')
+  const [fetchResult, setFetchResult] = useState<'ok' | 'fail' | null>(null)
 
   return (
     <section className="panel studio-panel">
@@ -111,6 +122,58 @@ export default function SongStudio({
           />
         </details>
       )}
+
+      <div className="studio-row">
+        <button
+          type="button"
+          className="btn btn-share"
+          data-testid="share-btn"
+          disabled={!enabled || exportText === null}
+          onClick={() => void onShare()}
+        >
+          分享到服务器
+        </button>
+        {shareId !== null && (
+          <span className="studio-hint ok" data-testid="share-id">
+            分享码 <b className="share-code">{shareId}</b> —— 朋友在下方凭码取回
+          </span>
+        )}
+      </div>
+
+      <div className="studio-row">
+        <input
+          className="field-input field-input-code"
+          data-testid="share-code-input"
+          placeholder="填入朋友的分享码"
+          value={shareCodeInput}
+          onChange={(e) => {
+            setShareCodeInput(e.target.value.toUpperCase())
+            setFetchResult(null)
+          }}
+          maxLength={6}
+        />
+        <button
+          type="button"
+          className="btn btn-fetch"
+          data-testid="fetch-btn"
+          disabled={!enabled || shareCodeInput.trim() === ''}
+          onClick={() => {
+            void onFetchShare(shareCodeInput).then((ok) => setFetchResult(ok ? 'ok' : 'fail'))
+          }}
+        >
+          取回
+        </button>
+        {fetchResult === 'ok' && (
+          <span className="studio-hint ok" data-testid="fetch-ok">
+            取回成功,已加入曲库
+          </span>
+        )}
+        {fetchResult === 'fail' && (
+          <span className="studio-hint err" data-testid="fetch-fail">
+            分享码无效或服务器不可达
+          </span>
+        )}
+      </div>
 
       <div className="studio-row studio-import">
         <textarea

@@ -414,3 +414,52 @@ test('song studio: record a few notes, save as a song, and arm it from the libra
 
   await ctx.close()
 })
+
+test('song sharing: publish a song to the server and fetch it back by share code', async ({
+  browser,
+}) => {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  await createRoom(page, 'Sharers')
+  await waitInstrumentsReady(page)
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
+
+  // 录两三个音并保存
+  await expect
+    .poll(() => page.getByTestId('readout-beat').locator('.readout-value').textContent(), {
+      timeout: 20_000,
+    })
+    .not.toBe('—')
+  await page.getByTestId('record-btn').click()
+  await page.waitForTimeout(300)
+  await page.keyboard.press('a')
+  await page.waitForTimeout(250)
+  await page.keyboard.press('s')
+  await page.waitForTimeout(250)
+  await page.keyboard.press('d')
+  await page.getByTestId('stop-btn').click()
+  await expect(page.getByTestId('song-title-input')).toBeVisible()
+  await page.getByTestId('song-title-input').fill('分享测试曲')
+  await page.getByTestId('save-song-btn').click()
+
+  // 分享到服务器 → 拿到 6 位分享码
+  await page.getByTestId('share-btn').click()
+  await expect(page.getByTestId('share-id')).toBeVisible({ timeout: 10_000 })
+  const code = (await page.getByTestId('share-id').textContent())?.match(/[A-Z2-9]{6}/)?.[0]
+  expect(code).toMatch(/^[A-Z2-9]{6}$/)
+
+  // 直接打 API 验证
+  const res = await page.request.get(`http://localhost:8081/api/songs/${code}`)
+  expect(res.status()).toBe(200)
+  const song = (await res.json()) as { title: string }
+  expect(song.title).toBe('分享测试曲')
+
+  // 通过 UI 凭码取回 → 曲库出现第二份
+  await page.getByTestId('share-code-input').fill(code)
+  await page.getByTestId('fetch-btn').click()
+  await expect(page.getByTestId('fetch-ok')).toBeVisible()
+  await expect(page.locator('.song-row', { hasText: '分享测试曲' })).toHaveCount(2)
+  console.log(`[e2e] song share round-trip: ${code}`)
+
+  await ctx.close()
+})

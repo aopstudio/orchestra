@@ -671,6 +671,22 @@ button {
   background: linear-gradient(180deg, #b28cff, #8a5cf6);
 }
 
+.btn-share {
+  color: #04110e;
+  background: linear-gradient(180deg, var(--cyan-hi), var(--cyan));
+}
+
+.btn-fetch {
+  color: #101224;
+  background: linear-gradient(180deg, #b28cff, #8a5cf6);
+}
+
+.share-code {
+  font-family: var(--font-mono);
+  letter-spacing: 0.25em;
+  color: var(--cyan);
+}
+
 .studio-json {
   width: 100%;
   min-height: 72px;

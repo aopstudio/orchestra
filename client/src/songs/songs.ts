@@ -9,39 +9,9 @@
  * 所有曲目均为公有领域 / 原创,避免版权问题。
  */
 
-import type { InstrumentId } from '@orchestra/shared'
+import type { Song, SongNote, SongPart } from '@orchestra/shared'
 
-export interface SongNote {
-  /** MIDI 音符号(0–127);鼓声部用 GM 鼓件 35–51 */
-  note: number
-  /** 相对歌曲起点的拍位(小数拍,基于歌曲自身 bpm/bpi 网格) */
-  beat: number
-  /** 时值(拍),默认 1 拍 */
-  duration?: number
-  /** 力度(0–127),默认 100 */
-  velocity?: number
-}
-
-export interface SongPart {
-  /** 声部 id(房间内选声部用) */
-  id: string
-  /** 声部显示名 */
-  name: string
-  /** 该声部播放/回放所用的乐器(决定音色与键位映射) */
-  instrument: InstrumentId
-  /** 该声部的音符序列(按 beat 升序) */
-  notes: SongNote[]
-}
-
-export interface Song {
-  id: string
-  title: string
-  /** 歌曲自身速度(BPM) */
-  bpm: number
-  /** 拍号:每小节拍数 */
-  bpi: number
-  parts: SongPart[]
-}
+export type { Song, SongNote, SongPart }
 
 /**
  * 小星星(旋律 + 简单低音伴奏)

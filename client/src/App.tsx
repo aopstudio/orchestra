@@ -16,7 +16,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { InstrumentId } from '@orchestra/shared'
+import { isValidSong, type InstrumentId } from '@orchestra/shared'
 import { WsClient, type WsHandlers } from './net/wsClient'
 import { createBeatGrid, type BeatGrid } from './sync/beatGrid'
 import { estimateOffset, type SyncSample } from './sync/clockOffset'
@@ -172,6 +172,10 @@ export default function App() {
   const [isRecording, setIsRecording] = useState(false)
   const [recordedCount, setRecordedCount] = useState(0)
   const [exportText, setExportText] = useState<string | null>(null)
+  /** 分享目标(最近一次停止/保存的曲目)。 */
+  const [shareSong, setShareSong] = useState<Song | null>(null)
+  /** 服务器返回的分享码。 */
+  const [shareId, setShareId] = useState<string | null>(null)
   /** 录制会话: 起点服务器拍 + 收集的音符。 */
   const recordingRef = useRef<{ startBeat: number; notes: SongNote[] } | null>(null)
   /** Guide window: MIDI notes to press now / arriving soon, from the guide engine. */
@@ -856,22 +860,23 @@ export default function App() {
     recordingRef.current = { ...rec, notes }
     setRecordedCount(notes.length)
     if (notes.length > 0) {
-      setExportText(
-        exportSongJson({
-          id: 'custom-draft',
-          title: '我的新曲',
-          bpm: bpmRef.current,
-          bpi: bpiRef.current,
-          parts: [
-            {
-              id: 'part1',
-              name: '自录',
-              instrument: currentInstrument(),
-              notes,
-            },
-          ],
-        }),
-      )
+      const draft: Song = {
+        id: 'custom-draft',
+        title: '我的新曲',
+        bpm: bpmRef.current,
+        bpi: bpiRef.current,
+        parts: [
+          {
+            id: 'part1',
+            name: '自录',
+            instrument: currentInstrument(),
+            notes,
+          },
+        ],
+      }
+      setShareSong(draft)
+      setShareId(null)
+      setExportText(exportSongJson(draft))
     }
   }
 
@@ -897,6 +902,8 @@ export default function App() {
     setCustomSongs(next)
     saveCustomSongs(next)
     setExportText(exportSongJson(song))
+    setShareSong(song)
+    setShareId(null)
     setError(null)
   }
 
@@ -908,6 +915,40 @@ export default function App() {
     setCustomSongs(next)
     saveCustomSongs(next)
     return true
+  }
+
+  /** 把当前曲目 POST 到服务器换取分享码(Phase 3)。 */
+  const handleShareSong = async (): Promise<void> => {
+    if (shareSong === null) return
+    try {
+      const res = await fetch('/api/songs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(shareSong),
+      })
+      if (!res.ok) throw new Error(`share failed: ${res.status}`)
+      const data = (await res.json()) as { shareId: string }
+      setShareId(data.shareId)
+    } catch (err) {
+      console.warn('[App] share song failed:', err)
+      setError('分享失败: 服务器不可达或拒绝了请求')
+    }
+  }
+
+  /** 凭分享码从服务器取回曲目并加入曲库;成功返回 true。 */
+  const handleFetchShare = async (code: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`/api/songs/${encodeURIComponent(code.trim().toUpperCase())}`)
+      if (!res.ok) return false
+      const song = (await res.json()) as Song
+      if (!isValidSong(song)) return false
+      const next = [...customSongs, song]
+      setCustomSongs(next)
+      saveCustomSongs(next)
+      return true
+    } catch {
+      return false
+    }
   }
 
   /** Persist per-song BPM overrides. */
@@ -1288,6 +1329,9 @@ export default function App() {
             onSave={handleSaveRecording}
             onImport={handleImportSong}
             exportText={exportText}
+            onShare={() => handleShareSong()}
+            shareId={shareId}
+            onFetchShare={handleFetchShare}
           />
 
           <section className="panel">

@@ -42,7 +42,8 @@ export default defineConfig({
       timeout: 30_000,
     },
     {
-      command: 'npm run dev',
+      // 把 /ws 与 /api 的 Vite 代理都指向 E2E 用的 8081 后端
+      command: 'VITE_WS_TARGET=http://localhost:8081 npm run dev',
       port: 5173,
       reuseExistingServer: !process.env.CI,
       timeout: 30_000,
