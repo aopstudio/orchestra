@@ -24,6 +24,7 @@ import { LookaheadScheduler } from './audio/scheduler'
 import { Metronome } from './audio/metronome'
 import { createInstruments, type Instruments } from './audio/instruments'
 import { KeyState, drumNoteForKey, noteForKey } from './input/keyboard'
+import { connectMidi, type MidiConnection } from './input/midi'
 import JamPad, { PAD_HIGH_NOTE, PAD_LOW_NOTE } from './ui/JamPad'
 import GuideTicker from './ui/GuideTicker'
 import DrumPad from './ui/DrumPad'
@@ -86,6 +87,11 @@ export default function App() {
   const [name, setName] = useState(() => `player-${Math.floor(1000 + Math.random() * 9000)}`)
   /** 加入已有房间时填写的房间码(创建房间时忽略)。 */
   const [roomCodeInput, setRoomCodeInput] = useState('')
+  /** MIDI 连接状态(Phase 2)。 */
+  const [midiState, setMidiState] = useState<'idle' | 'unsupported' | 'error' | 'connected'>(
+    'idle',
+  )
+  const [midiDevices, setMidiDevices] = useState<string[]>([])
 
   // --- connection / room state ----------------------------------------------
   const [connState, setConnState] = useState<ConnState>('idle')
@@ -176,6 +182,8 @@ export default function App() {
   const pendingSyncRef = useRef<((sample: SyncSample) => void) | null>(null)
   const syncingRef = useRef(false)
   const keyStateRef = useRef<KeyState>(new KeyState())
+  /** MIDI 连接实例(卸载时断开)。 */
+  const midiConnectionRef = useRef<MidiConnection | null>(null)
   /** MIDI notes currently held (keyboard or mouse) — dedupes noteOn across inputs. */
   const heldNotesRef = useRef<Set<number>>(new Set())
   const connStateRef = useRef<ConnState>('idle')
@@ -591,6 +599,39 @@ export default function App() {
     }
   }
 
+  /**
+   * 连接 MIDI 键盘(Phase 2): 必须在用户手势中调用 requestMIDIAccess。
+   * Safari 不支持 → unsupported;无设备/被拒 → error;成功 → connected。
+   * MIDI 事件复用与键盘相同的 noteOn/noteOff 管线(含引导判定)。
+   */
+  const handleConnectMidi = async (): Promise<void> => {
+    setMidiState('idle')
+    try {
+      const conn = await connectMidi({
+        onNoteOn: (note, velocity) => {
+          // 鼓声部下 MIDI 音符直接作为一次敲击(one-shot)
+          if (selectedPartRef.current?.instrument === 'drums') {
+            noteOn(note, true, velocity)
+          } else {
+            noteOn(note, false, velocity)
+          }
+        },
+        onNoteOff: (note) => noteOff(note),
+      })
+      if (conn === null) {
+        setMidiState('unsupported')
+        return
+      }
+      midiConnectionRef.current?.disconnect()
+      midiConnectionRef.current = conn
+      setMidiDevices(conn.deviceNames)
+      setMidiState(conn.deviceNames.length > 0 ? 'connected' : 'error')
+    } catch (err) {
+      console.warn('[App] MIDI connect failed:', err)
+      setMidiState('error')
+    }
+  }
+
   /** Sound Test: local C-major arpeggio to verify audio before joining. */
   const handleSoundTest = async (): Promise<void> => {
     if (soundTestBusy) return
@@ -644,7 +685,7 @@ export default function App() {
    * Reads only refs + stable setters, so a first-render closure stays correct.
    * `oneShot`(鼓垫模式): 每次按下都是独立敲击,不进入 held 去重,也不发送 noteOff。
    */
-  const noteOn = (note: number, oneShot = false): void => {
+  const noteOn = (note: number, oneShot = false, velocity = 100): void => {
     if (connStateRef.current !== 'connected') return
     if (!oneShot) {
       if (heldNotesRef.current.has(note)) return
@@ -681,7 +722,7 @@ export default function App() {
     const keydownAt = performance.now()
     const targetAudio = sched.currentTime + LOCAL_LOOKAHEAD_SEC
     const instrument = currentInstrument()
-    inst.play(instrument, note, 100, targetAudio - ctx.currentTime)
+    inst.play(instrument, note, velocity, targetAudio - ctx.currentTime)
 
     // ① key→sound latency readout: how far the audio output clock has moved
     // past the keydown instant (≈ the hardware input→output latency).
@@ -690,7 +731,7 @@ export default function App() {
       setLatencyMs(Math.max(0, Math.round(latency)))
     }
 
-    wsRef.current?.sendNote(note, 100, instrument)
+    wsRef.current?.sendNote(note, velocity, instrument)
   }
 
   /** Shared note-off; releases the remote player's highlight too. */
@@ -940,6 +981,8 @@ export default function App() {
   useEffect(
     () => () => {
       wsRef.current?.close()
+      midiConnectionRef.current?.disconnect()
+      midiConnectionRef.current = null
       metronomeRef.current?.stop()
       schedulerRef.current?.stop()
       wsRef.current = null
@@ -1041,6 +1084,32 @@ export default function App() {
               <p className="field-hint">
                 创建房间后会得到 6 位房间码;把码告诉朋友,他们填码点「加入房间」。
               </p>
+              <div className="midi-row">
+                <button
+                  type="button"
+                  className="btn btn-midi"
+                  data-testid="midi-btn"
+                  disabled={midiState === 'connected'}
+                  onClick={() => void handleConnectMidi()}
+                >
+                  {midiState === 'connected' ? 'MIDI ✓' : '连接 MIDI 键盘'}
+                </button>
+                {midiState === 'unsupported' && (
+                  <span className="midi-hint" data-testid="midi-unsupported">
+                    此浏览器不支持 Web MIDI(建议 Chrome/Edge),可用键盘演奏
+                  </span>
+                )}
+                {midiState === 'error' && (
+                  <span className="midi-hint midi-hint-error" data-testid="midi-error">
+                    未发现 MIDI 设备或授权被拒绝
+                  </span>
+                )}
+                {midiState === 'connected' && midiDevices.length > 0 && (
+                  <span className="midi-hint" data-testid="midi-devices">
+                    已连接: {midiDevices.join('、')}
+                  </span>
+                )}
+              </div>
             </form>
           </section>
 

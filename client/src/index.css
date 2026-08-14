@@ -280,6 +280,35 @@ button {
   flex: 1;
 }
 
+/* --- MIDI --- */
+
+.midi-row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+}
+
+.btn-midi {
+  color: #101224;
+  background: linear-gradient(180deg, #b28cff, #8a5cf6);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+}
+
+.btn-midi:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+
+.midi-hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
+.midi-hint-error {
+  color: #ff8d7a;
+}
+
 /* --- buttons --- */
 
 .btn {
