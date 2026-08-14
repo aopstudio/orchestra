@@ -1,5 +1,5 @@
 /**
- * WebSocket 协议类型(Phase 0 同步验证原型)
+ * WebSocket 协议类型
  *
  * 时钟模型:
  * - serverTime: 服务器上的单调毫秒时钟(基于 performance.now())
@@ -7,11 +7,19 @@
  * - 音符事件一律由服务器打时间戳(serverTime)后广播
  */
 
+/**
+ * 乐器标识。音符事件携带它,让远端按发送者的乐器回放声音:
+ * - piano: 采样钢琴 / 振荡器三角波
+ * - bass:  采样电贝斯 / 振荡器锯齿波+低通
+ * - drums: TR-808 采样(GM 鼓图 35–51) / 合成鼓
+ */
+export type InstrumentId = 'piano' | 'bass' | 'drums'
+
 /** 客户端 → 服务器 */
 export type ClientMsg =
   | { type: 'createRoom'; name: string }
   | { type: 'join'; name: string; roomCode: string }
-  | { type: 'note'; note: number; velocity: number }
+  | { type: 'note'; note: number; velocity: number; instrument: InstrumentId }
   | { type: 'noteOff'; note: number }
   | { type: 'setTempo'; bpm: number }
   | { type: 'setBpi'; bpi: number }
@@ -26,7 +34,14 @@ export type ServerMsg =
   | { type: 'clock'; beat: number; tempo: number; bpi: number; serverTime: number }
   | { type: 'tempo'; bpm: number; serverTime: number }
   | { type: 'bpi'; bpi: number; serverTime: number }
-  | { type: 'note'; from: string; note: number; velocity: number; serverTime: number }
+  | {
+      type: 'note'
+      from: string
+      note: number
+      velocity: number
+      instrument: InstrumentId
+      serverTime: number
+    }
   | { type: 'noteOff'; from: string; note: number; serverTime: number }
   | { type: 'syncAck'; t1: number; t2: number; t3: number }
 

@@ -10,11 +10,12 @@ import type { ClientMsg, ServerMsg } from './protocol'
  * 这样联合类型整体不会因为"其他成员不匹配单一形状"而误报。
  */
 
-test('note 消息形状', () => {
+test('note 消息形状(携带乐器)', () => {
   expectTypeOf<Extract<ClientMsg, { type: 'note' }>>().toEqualTypeOf<{
     type: 'note'
     note: number
     velocity: number
+    instrument: 'piano' | 'bass' | 'drums'
   }>()
 })
 
@@ -37,12 +38,13 @@ test('clock 消息形状', () => {
   }>()
 })
 
-test('note 广播形状(带服务器时间戳)', () => {
+test('note 广播形状(带服务器时间戳与乐器)', () => {
   expectTypeOf<Extract<ServerMsg, { type: 'note' }>>().toEqualTypeOf<{
     type: 'note'
     from: string
     note: number
     velocity: number
+    instrument: 'piano' | 'bass' | 'drums'
     serverTime: number
   }>()
 })

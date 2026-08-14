@@ -70,7 +70,7 @@ wss.on('connection', (ws) => {
     const { room } = entry
 
     if (msg.type === 'note') {
-      room.note(member.id, msg.note, msg.velocity)
+      room.note(member.id, msg.note, msg.velocity, msg.instrument)
     } else if (msg.type === 'noteOff') {
       room.noteOff(member.id, msg.note)
     } else if (msg.type === 'setTempo') {

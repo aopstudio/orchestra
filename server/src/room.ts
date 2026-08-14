@@ -1,4 +1,4 @@
-import type { ServerMsg } from '@orchestra/shared'
+import type { InstrumentId, ServerMsg } from '@orchestra/shared'
 import { createBeatClock } from './beatClock'
 
 export interface RoomMember {
@@ -11,7 +11,7 @@ export interface Room {
   size(): number
   join(member: RoomMember): void
   leave(id: string): void
-  note(fromId: string, note: number, velocity: number): void
+  note(fromId: string, note: number, velocity: number, instrument: InstrumentId): void
   noteOff(fromId: string, note: number): void
   setTempo(bpm: number): void
   setBpi(bpi: number): void
@@ -62,11 +62,11 @@ export function createRoom(
       }
     },
 
-    note(fromId, note, velocity) {
+    note(fromId, note, velocity, instrument) {
       const serverTime = now()
       for (const m of members.values()) {
         if (m.id !== fromId) {
-          m.send({ type: 'note', from: fromId, note, velocity, serverTime })
+          m.send({ type: 'note', from: fromId, note, velocity, instrument, serverTime })
         }
       }
     },

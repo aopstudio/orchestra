@@ -1,6 +1,6 @@
 /**
- * Instrument wrappers around smplr (sampled piano + TR-808 drums) with a
- * built-in WebAudio oscillator fallback so the demo ALWAYS makes sound.
+ * Instrument wrappers around smplr (sampled piano / bass + TR-808 drums) with
+ * a built-in WebAudio oscillator fallback so the demo ALWAYS makes sound.
  *
  * smplr v1 API notes (verified against node_modules/smplr@1.0.0):
  * - `Soundfont` and `DrumMachine` are callable factories, not classes:
@@ -19,16 +19,17 @@
  */
 
 import { Soundfont, DrumMachine } from 'smplr'
+import type { InstrumentId } from '@orchestra/shared'
 
 export interface Instruments {
-  /** Play a note (MIDI 0–127) at `ctx.currentTime + at` seconds. */
-  piano(note: number, velocity: number, at: number): void
+  /** Play a note (MIDI 0–127) on the given instrument at `ctx.currentTime + at` seconds. */
+  play(instrument: InstrumentId, note: number, velocity: number, at: number): void
   /** Play a GM drum note (35–51) at `ctx.currentTime + at` seconds. */
   drum(note: number, velocity: number, at: number): void
 }
 
 const LOAD_TIMEOUT_MS = 10_000
-const PIANO_DURATION = 1.5
+const NOTE_DURATION = 1.5
 
 /** GM drum notes (35–51) → closest TR-808 group alias. */
 const GM_DRUM_TO_808: Record<number, string> = {
@@ -75,40 +76,85 @@ function awaitReady(ready: Promise<void>, label: string): Promise<boolean> {
   })
 }
 
-export async function createInstruments(ctx: AudioContext): Promise<Instruments> {
-  let piano: ReturnType<typeof Soundfont> | null = null
+/** 通用 Soundfont 加载: 成功返回实例,失败/超时返回 null(不抛出)。 */
+async function loadSoundfont(
+  ctx: AudioContext,
+  instrument: string,
+): Promise<ReturnType<typeof Soundfont> | null> {
   try {
-    const inst = Soundfont(ctx, { instrument: 'acoustic_grand_piano' })
-    if (await awaitReady(inst.ready, 'Soundfont piano')) {
-      piano = inst
+    const inst = Soundfont(ctx, { instrument })
+    if (await awaitReady(inst.ready, `Soundfont ${instrument}`)) {
+      return inst
     }
   } catch (err) {
-    console.warn('Soundfont piano unavailable (using oscillator fallback):', err)
+    console.warn(`Soundfont ${instrument} unavailable (using oscillator fallback):`, err)
   }
+  return null
+}
 
-  let drums: ReturnType<typeof DrumMachine> | null = null
-  try {
-    const inst = DrumMachine(ctx, { instrument: 'TR-808' })
-    if (await awaitReady(inst.ready, 'DrumMachine TR-808')) {
-      drums = inst
-    }
-  } catch (err) {
-    console.warn('DrumMachine TR-808 unavailable (using oscillator fallback):', err)
+export async function createInstruments(ctx: AudioContext): Promise<Instruments> {
+  // 按需并行加载三个采样乐器;任一失败独立降级,不影响其他。
+  const [piano, bass, drums] = await Promise.all([
+    loadSoundfont(ctx, 'acoustic_grand_piano'),
+    loadSoundfont(ctx, 'electric_bass_finger'),
+    (async () => {
+      try {
+        const inst = DrumMachine(ctx, { instrument: 'TR-808' })
+        if (await awaitReady(inst.ready, 'DrumMachine TR-808')) {
+          return inst
+        }
+      } catch (err) {
+        console.warn('DrumMachine TR-808 unavailable (using oscillator fallback):', err)
+      }
+      return null
+    })(),
+  ])
+
+  type SoundfontInstance = ReturnType<typeof Soundfont>
+
+  function startSampled(
+    inst: SoundfontInstance,
+    note: number,
+    velocity: number,
+    time: number,
+  ): void {
+    inst.start({ note, velocity, time, duration: NOTE_DURATION })
   }
 
   return {
-    piano(note, velocity, at) {
+    play(instrument, note, velocity, at) {
       const time = ctx.currentTime + at
-      if (piano !== null) {
+      if (instrument === 'drums') {
+        // drums 走 GM 鼓图
+        if (drums !== null) {
+          try {
+            const target = GM_DRUM_TO_808[note] ?? note
+            drums.start({ note: target, velocity, time })
+            return
+          } catch (err) {
+            console.warn('DrumMachine start failed (switching to fallback):', err)
+          }
+        }
+        fallbackDrum(ctx, note, velocity, time)
+        return
+      }
+      const sampled = instrument === 'bass' ? bass : piano
+      if (sampled !== null) {
         try {
-          piano.start({ note, velocity, time, duration: PIANO_DURATION })
+          startSampled(sampled, note, velocity, time)
           return
         } catch (err) {
-          console.warn('Soundfont piano start failed (switching to fallback):', err)
-          piano = null
+          console.warn(`Soundfont ${instrument} start failed (switching to fallback):`, err)
+          if (instrument === 'bass') {
+            // 永久降级到合成贝斯
+          }
         }
       }
-      fallbackPiano(ctx, note, velocity, time)
+      if (instrument === 'bass') {
+        fallbackBass(ctx, note, velocity, time)
+      } else {
+        fallbackPiano(ctx, note, velocity, time)
+      }
     },
     drum(note, velocity, at) {
       const time = ctx.currentTime + at
@@ -119,7 +165,6 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
           return
         } catch (err) {
           console.warn('DrumMachine start failed (switching to fallback):', err)
-          drums = null
         }
       }
       fallbackDrum(ctx, note, velocity, time)
@@ -227,6 +272,30 @@ function fallbackPiano(ctx: AudioContext, note: number, velocity: number, at: nu
     duration: 0.6,
     peak: 0.07 * vel,
   })
+}
+
+/** 合成贝斯: 锯齿波 + 低通滤波 + 短时值,模拟电贝斯拨弦。 */
+function fallbackBass(ctx: AudioContext, note: number, velocity: number, at: number): void {
+  const vel = velocity / 127
+  const freq = midiToFrequency(note)
+  const t0 = Math.max(at, ctx.currentTime)
+  if (ctx.state === 'closed') return
+  const osc = ctx.createOscillator()
+  const filter = ctx.createBiquadFilter()
+  const gain = ctx.createGain()
+  osc.type = 'sawtooth'
+  osc.frequency.setValueAtTime(freq, t0)
+  filter.type = 'lowpass'
+  filter.frequency.setValueAtTime(600, t0)
+  filter.Q.value = 2
+  gain.gain.setValueAtTime(0, t0)
+  gain.gain.linearRampToValueAtTime(0.32 * vel, t0 + 0.01)
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55)
+  osc.connect(filter)
+  filter.connect(gain)
+  gain.connect(ctx.destination)
+  osc.start(t0)
+  osc.stop(t0 + 0.65)
 }
 
 function fallbackDrum(ctx: AudioContext, note: number, velocity: number, at: number): void {

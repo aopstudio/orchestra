@@ -16,13 +16,14 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { InstrumentId } from '@orchestra/shared'
 import { WsClient, type WsHandlers } from './net/wsClient'
 import { createBeatGrid, type BeatGrid } from './sync/beatGrid'
 import { estimateOffset, type SyncSample } from './sync/clockOffset'
 import { LookaheadScheduler } from './audio/scheduler'
 import { Metronome } from './audio/metronome'
 import { createInstruments, type Instruments } from './audio/instruments'
-import { KeyState, noteForKey } from './input/keyboard'
+import { KeyState, drumNoteForKey, noteForKey } from './input/keyboard'
 import JamPad, { PAD_HIGH_NOTE, PAD_LOW_NOTE } from './ui/JamPad'
 import GuideTicker from './ui/GuideTicker'
 import StatusPanel, { type ConnState, type Peer } from './ui/StatusPanel'
@@ -477,7 +478,8 @@ export default function App() {
         // the first sync completes, fall back to playing immediately.
         const grid = beatGridRef.current
         const at = grid === null ? 0 : grid.toAudioTime(msg.serverTime) - sched.currentTime
-        inst.piano(msg.note, msg.velocity, at)
+        // 按发送者的乐器回放,保证鼓手/贝斯手/键盘手在每个人耳中都是自己的音色。
+        inst.play(msg.instrument, msg.note, msg.velocity, at)
 
         // Highlight the same key on the visible pad, but only for notes that
         // exist on it — the sound above plays for every note, remoteNotes is
@@ -558,7 +560,7 @@ export default function App() {
       const arpeggio = [60, 64, 67, 72, 67, 64]
       const start = ctx.currentTime + LOCAL_LOOKAHEAD_SEC
       arpeggio.forEach((note, i) => {
-        inst.piano(note, 100, start + i * 0.12 - ctx.currentTime)
+        inst.play('piano', note, 100, start + i * 0.12 - ctx.currentTime)
       })
     } catch (err) {
       console.warn('[App] sound test failed:', err)
@@ -591,15 +593,21 @@ export default function App() {
     wsRef.current?.sendSetBpi(nextBpi)
   }
 
+  /** 当前演奏的乐器: 选了声部用声部的乐器,自由合奏(jam)用钢琴。 */
+  const currentInstrument = (): InstrumentId => selectedPartRef.current?.instrument ?? 'piano'
+
   /**
    * Shared note-on for BOTH the computer keyboard and the JamPad's mouse keys:
    * guard → held-dedupe → local sound + latency readout → sendNote to the room.
    * Reads only refs + stable setters, so a first-render closure stays correct.
+   * `oneShot`(鼓垫模式): 每次按下都是独立敲击,不进入 held 去重,也不发送 noteOff。
    */
-  const noteOn = (note: number): void => {
+  const noteOn = (note: number, oneShot = false): void => {
     if (connStateRef.current !== 'connected') return
-    if (heldNotesRef.current.has(note)) return
-    heldNotesRef.current.add(note)
+    if (!oneShot) {
+      if (heldNotesRef.current.has(note)) return
+      heldNotesRef.current.add(note)
+    }
     setDownNotes((prev) => (prev.has(note) ? prev : new Set(prev).add(note)))
 
     // --- Phase 1 judgment: judge every local press against the armed part ---
@@ -630,7 +638,8 @@ export default function App() {
     // replayed from their server timestamp by the onNote handler.
     const keydownAt = performance.now()
     const targetAudio = sched.currentTime + LOCAL_LOOKAHEAD_SEC
-    inst.piano(note, 100, targetAudio - ctx.currentTime)
+    const instrument = currentInstrument()
+    inst.play(instrument, note, 100, targetAudio - ctx.currentTime)
 
     // ① key→sound latency readout: how far the audio output clock has moved
     // past the keydown instant (≈ the hardware input→output latency).
@@ -639,7 +648,7 @@ export default function App() {
       setLatencyMs(Math.max(0, Math.round(latency)))
     }
 
-    wsRef.current?.sendNote(note, 100)
+    wsRef.current?.sendNote(note, 100, instrument)
   }
 
   /** Shared note-off; releases the remote player's highlight too. */
@@ -655,8 +664,14 @@ export default function App() {
     wsRef.current?.sendNoteOff(note)
   }
 
-  /** Computer-keyboard note-on: KeyState still dedupes repeats per key. */
+  /** Computer-keyboard note-on. 鼓模式下键位是鼓垫(one-shot),音高模式下是钢琴键。 */
   const handleKeyDown = (key: string, repeat = false): void => {
+    if (selectedPartRef.current?.instrument === 'drums') {
+      if (repeat) return
+      const drumNote = drumNoteForKey(key)
+      if (drumNote !== null) noteOn(drumNote, true)
+      return
+    }
     const note = keyStateRef.current.press(key, repeat)
     if (note !== null) noteOn(note)
   }
@@ -1087,7 +1102,7 @@ export default function App() {
 
       <footer className="app-footer">
         <span>clock offset = server − client · positive means server is ahead</span>
-        <span>white keys A–K · black keys W–U</span>
+        <span>pitch keys: white A–K, Z–M · black W–U, Q–6 (C3–C5) · drums: A/S/D/F… = kick/snare/hat…</span>
       </footer>
     </div>
   )

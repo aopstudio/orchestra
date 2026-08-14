@@ -53,9 +53,9 @@ describe('createRoom', () => {
     c.sent.length = 0
 
     t = 2500
-    room.note('b', 60, 80)
+    room.note('b', 60, 80, 'piano')
 
-    const expected = { type: 'note', from: 'b', note: 60, velocity: 80, serverTime: 2500 } as const
+    const expected = { type: 'note', from: 'b', note: 60, velocity: 80, instrument: 'piano', serverTime: 2500 } as const
     expect(a.sent).toEqual([expected])
     expect(c.sent).toEqual([expected])
     expect(b.sent).toEqual([])

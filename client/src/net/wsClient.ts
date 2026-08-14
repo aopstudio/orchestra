@@ -7,7 +7,7 @@
  * capped at 10s). `connect()` resets the reconnect flag.
  */
 
-import type { ClientMsg, ServerMsg } from '@orchestra/shared'
+import type { ClientMsg, InstrumentId, ServerMsg } from '@orchestra/shared'
 
 /** Discriminated-union extraction: the per-type server messages. */
 type WelcomeMsg = Extract<ServerMsg, { type: 'welcome' }>
@@ -79,9 +79,9 @@ export class WsClient {
     this.trySendIntent()
   }
 
-  /** Sends a `note` message (note is a MIDI number). */
-  sendNote(note: number, velocity: number): void {
-    this.send({ type: 'note', note, velocity })
+  /** Sends a `note` message (note is a MIDI number; instrument drives remote playback). */
+  sendNote(note: number, velocity: number, instrument: InstrumentId): void {
+    this.send({ type: 'note', note, velocity, instrument })
   }
 
   /** Sends a `noteOff` message (note is a MIDI number). */
