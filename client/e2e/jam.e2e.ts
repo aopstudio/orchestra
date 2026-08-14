@@ -5,6 +5,8 @@ declare global {
   interface Window {
     /** E2E hook: count of remote note events received (set only under ?e2e=1). */
     __orchNotes: number | undefined
+    __orchLastInstrument: string | undefined
+    __orchLastNote: number | undefined
     /** E2E hook: set once the instrument pipeline is ready (set only under ?e2e=1). */
     __orchInstrumentsReady: boolean | undefined
   }
@@ -726,6 +728,35 @@ test('jam sync: two players start a free jam together after a custom lead-in (ba
   await expect(pageA.getByTestId('jam-go')).toBeVisible({ timeout: 25_000 })
   console.log('[e2e] jam sync: pickup variant also synchronized')
 
+  await ctxA.close()
+  await ctxB.close()
+})
+
+test('free-jam drums: keyboard maps to drum pads (a = kick 36), not pitch keys', async ({
+  browser,
+}) => {
+  const ctxA = await browser.newContext()
+  const pageA = await ctxA.newPage()
+  const roomCode = await createRoom(pageA, 'DrumFreeA')
+  const ctxB = await browser.newContext()
+  const pageB = await ctxB.newPage()
+  await joinRoom(pageB, 'DrumFreeB', roomCode)
+  await waitInstrumentsReady(pageB)
+  await waitInstrumentsReady(pageA)
+
+  // 自由合奏(不武装声部)选鼓音色
+  await pageB.getByTestId('instrument-drums').click()
+  await pageB.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
+  await pageB.keyboard.press('a')
+  await pageA.waitForTimeout(1200)
+  const heard = await pageA.evaluate(() => ({
+    instrument: window.__orchLastInstrument,
+    note: window.__orchLastNote,
+  }))
+  // 关键: 按 'a' 应发鼓件 36(kick),而不是钢琴音高 60
+  expect(heard.instrument).toBe('drums')
+  expect(heard.note).toBe(36)
+  console.log(`[e2e] free-jam drums: a → kick (note ${heard.note}, instrument ${heard.instrument})`)
   await ctxA.close()
   await ctxB.close()
 })

@@ -754,9 +754,10 @@ export default function App() {
     wsRef.current?.sendNoteOff(note)
   }
 
-  /** Computer-keyboard note-on. 鼓模式下键位是鼓垫(one-shot),音高模式下是钢琴键。 */
+  /** Computer-keyboard note-on. 当前音色是鼓(武装鼓声部 或 自由合奏选了鼓)时,
+   *  键位是鼓垫(one-shot);否则是钢琴键。 */
   const handleKeyDown = (key: string, repeat = false): void => {
-    if (selectedPartRef.current?.instrument === 'drums') {
+    if (currentInstrument() === 'drums') {
       if (repeat) return
       const drumNote = drumNoteForKey(key)
       if (drumNote !== null) noteOn(drumNote, true)

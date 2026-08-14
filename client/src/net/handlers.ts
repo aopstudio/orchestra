@@ -315,9 +315,11 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
         const hook = window as unknown as {
           __orchNotes?: number
           __orchLastInstrument?: string
+          __orchLastNote?: number
         }
         hook.__orchNotes = (hook.__orchNotes ?? 0) + 1
         hook.__orchLastInstrument = msg.instrument
+        hook.__orchLastNote = msg.note
       }
       const inst = instrumentsRef.current
       const sched = schedulerRef.current

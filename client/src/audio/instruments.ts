@@ -158,9 +158,16 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
     trumpet: ctx.createGain(),
     violin: ctx.createGain(),
   }
-  for (const bus of Object.values(buses)) {
+  // 鼓总线: 低架提升(+6dB @ 100Hz),强化底鼓/嗵鼓低频。
+  // 底鼓采样主频 ~60Hz,许多笔记本/小扬声器在 100Hz 以下滚降严重,不做提升几乎听不到底鼓。
+  const drumsLowshelf = ctx.createBiquadFilter()
+  drumsLowshelf.type = 'lowshelf'
+  drumsLowshelf.frequency.value = 100
+  drumsLowshelf.gain.value = 6
+  drumsLowshelf.connect(master)
+  for (const [id, bus] of Object.entries(buses) as Array<[InstrumentId, GainNode]>) {
     bus.gain.value = 1
-    bus.connect(master)
+    bus.connect(id === 'drums' ? drumsLowshelf : master)
   }
 
   // 按需并行加载五个采样乐器;任一失败独立降级,不影响其他。
@@ -217,6 +224,22 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
           try {
             const target = GM_DRUM_TO_808[note] ?? note
             drums.start({ note: target, velocity, time })
+            // 底鼓"身体层"(~100Hz): 采样主频 60Hz 在小扬声器上被滚降,
+            // 叠加一段 110→70Hz 短促低音,保证任何设备都能听到"咚"。
+            if (note === 35 || note === 36) {
+              playTone(
+                ctx,
+                {
+                  type: 'sine',
+                  frequency: 110,
+                  freqEnd: 70,
+                  at,
+                  duration: 0.1,
+                  peak: 0.35 * (velocity / 127),
+                },
+                bus,
+              )
+            }
             return null
           } catch (err) {
             console.warn('DrumMachine start failed (switching to fallback):', err)
