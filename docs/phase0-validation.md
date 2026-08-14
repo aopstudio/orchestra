@@ -2,7 +2,7 @@
 
 > **Status note (2026-08-13):** 本报告为 Phase 0 历史验证记录。此后 Phase 1
 > 功能(多房间、引导/判定、声部混音、摇滚三声部曲库)已加入;当前测试规模为
-> **143 个单元测试 + 5 个 E2E 场景**,见 `docs/phase1-validation.md`。本节指标仍为
+> **172 个单元测试 + 10 个 E2E 场景**,见 `docs/phase1-validation.md`。本节指标仍为
 > Phase 0 完成时的实测值。
 
 **Date:** 2026-08-11
@@ -24,7 +24,7 @@ npm run e2e -w client
 # Type check
 npx tsc --noEmit   # from client/
 
-# Unit suites (grew since Phase 0: now 143 tests across shared/server/client)
+# Unit suites (grew since Phase 0: now 172 tests across shared/server/client)
 npm test           # from repo root
 ```
 
@@ -162,7 +162,7 @@ readouts in both windows tick within one frame of each other.
 | ----------------------- | ---------------------------- | ----------------------------------- |
 | E2E two-browser jam     | `npm run e2e -w client`      | ✅ 1 passed                         |
 | Type check              | `npx tsc --noEmit` (client/) | ✅ exit 0                           |
-| Unit suites             | `npm test` (root)            | ✅ 45 passed (server 9 + client 36) |
+| Unit suites             | `npm test` (root)            | ✅ 172 passed (shared 14 + server 31 + client 127) |
 | Metric ① latency        | readout                      | ✅ 29–32 ms < 50 ms                 |
 | Metric ② offset RTT     | readout sub-line             | ✅ 2 ms on loopback                 |
 | Metric ③ beat transport | E2E timing loop              | ✅ median 5 ms < 30 ms              |
