@@ -48,6 +48,7 @@ import JudgeBadge, { type JudgeBadgeData } from './ui/JudgeBadge'
 import { nextBarBoundary } from './guide/barBoundary'
 import { Judge, type JudgeStats } from './guide/judge'
 import { SONGS, type Song, type SongNote, type SongPart } from './songs/songs'
+import { finalizeRecording, recordNoteOff, recordNoteOn } from './songs/recorder'
 
 /** How often the NTP-style clock estimate is refreshed. */
 const SYNC_INTERVAL_MS = 30_000
@@ -592,9 +593,7 @@ export default function App() {
     // --- Phase 2 song studio: capture every local press into the recording ---
     const rec = recordingRef.current
     if (rec !== null && latestBeatRef.current !== null) {
-      // 量化到 0.5 拍(与曲库格式一致,支持八分音符)
-      const beat = Math.round((latestBeatRef.current - rec.startBeat) * 2) / 2
-      rec.notes.push({ note, beat })
+      recordNoteOn(rec.notes, note, latestBeatRef.current - rec.startBeat)
       setRecordedCount(rec.notes.length)
     }
 
@@ -649,6 +648,13 @@ export default function App() {
   const noteOff = (note: number): void => {
     if (!heldNotesRef.current.has(note)) return
     heldNotesRef.current.delete(note)
+
+    // --- Phase 3 song studio: 记录时值(松开时回填该音的 duration) ---
+    const rec = recordingRef.current
+    if (rec !== null && latestBeatRef.current !== null) {
+      recordNoteOff(rec.notes, note, latestBeatRef.current - rec.startBeat)
+    }
+
     setDownNotes((prev) => {
       if (!prev.has(note)) return prev
       const next = new Set(prev)
@@ -735,10 +741,8 @@ export default function App() {
     const rec = recordingRef.current
     if (rec === null) return
     setIsRecording(false)
-    // 按拍序排序 + 去重(同音同拍只留一次)
-    const notes = rec.notes
-      .sort((a, b) => a.beat - b.beat || a.note - b.note)
-      .filter((n, i, arr) => i === 0 || n.beat !== arr[i - 1]!.beat || n.note !== arr[i - 1]!.note)
+    // 排序 + 去重(同音同拍只留一次)
+    const notes = finalizeRecording(rec.notes)
     recordingRef.current = { ...rec, notes }
     setRecordedCount(notes.length)
     if (notes.length > 0) {
