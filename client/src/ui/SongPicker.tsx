@@ -1,0 +1,213 @@
+/**
+ * SongPicker — Phase 1 beginner song selection + part arming.
+ *
+ * Pure UI: lists the built-in songs (title + bpm/meter/part meta), and once a
+ * song is picked, its parts (name + note count). Selecting a part "arms" the
+ * guide for that part back in App. A judge toggle (like the metronome toggle)
+ * and a live hit/miss/score readout live in the panel footer.
+ *
+ * Song selection is LOCAL for now (each player picks on their own screen); the
+ * server beat grid is the shared clock, so guides stay aligned across the room
+ * even though the pick itself is not broadcast. Room song sync ships later.
+ */
+
+import type { Song } from '../songs/songs'
+import type { JudgeStats } from '../guide/judge'
+
+export interface SongPickerProps {
+  /** Built-in songbook. */
+  songs: Song[]
+  /** Currently selected song id (or null before a pick). */
+  selectedSongId: string | null
+  onSelectSong: (id: string) => void
+  /** Currently armed part id (or null before a pick). */
+  selectedPartId: string | null
+  onSelectPart: (partId: string) => void
+  /** Picking is only allowed while connected (mirrors the tempo/tsig controls). */
+  enabled: boolean
+  /** Song playback progress 0..1 (from the guide engine) — drives the amber line. */
+  progress?: number
+  /** Whether note judgment is active. */
+  judgeEnabled?: boolean
+  onToggleJudge?: () => void
+  /** Live judgment tally shown in the panel footer. */
+  judgeStats?: JudgeStats
+  /** Countdown beats left before the armed song starts (null = already playing). */
+  countdownBeatsLeft?: number | null
+  /** Restart the armed song from the top (re-runs the countdown). */
+  onRestart?: () => void
+  /** Per-song BPM overrides (song id → bpm); falls back to the song default. */
+  songBpmOverrides?: Record<string, number>
+  /** Change a song's default tempo (persisted + applied to the room). */
+  onSongBpmChange?: (songId: string, bpm: number) => void
+}
+
+/** Compact meta line under each song title. */
+function songMeta(song: Song): string {
+  const partNames = song.parts.map((p) => p.name).join(' + ')
+  return `${song.bpm} bpm · ${song.bpi}/4 · ${partNames}`
+}
+
+export default function SongPicker({
+  songs,
+  selectedSongId,
+  onSelectSong,
+  selectedPartId,
+  onSelectPart,
+  enabled,
+  progress = 0,
+  judgeEnabled = true,
+  onToggleJudge,
+  judgeStats,
+  countdownBeatsLeft = null,
+  onRestart,
+  songBpmOverrides = {},
+  onSongBpmChange,
+}: SongPickerProps) {
+  const selectedSong = songs.find((s) => s.id === selectedSongId) ?? null
+  const armed = selectedPartId !== null
+  const progressPct = Math.max(0, Math.min(100, Math.round(progress * 100)))
+  const selectedBpm =
+    selectedSong !== null ? (songBpmOverrides[selectedSong.id] ?? selectedSong.bpm) : null
+
+  return (
+    <section className="panel songbook-panel">
+      <h2 className="panel-title">
+        <span>Songbook · 曲库</span>
+        {armed ? (
+          <span className="songbook-armed">
+            <span className="dot" />
+            ARMED
+          </span>
+        ) : (
+          <span className="kbd-hint">pick a part to arm</span>
+        )}
+      </h2>
+
+      <div className="songbook-list" role="radiogroup" aria-label="Songs">
+        {songs.map((song) => {
+          const active = song.id === selectedSongId
+          return (
+            <button
+              key={song.id}
+              type="button"
+              className={active ? 'song-row song-row-active' : 'song-row'}
+              data-testid={`song-${song.id}`}
+              disabled={!enabled}
+              aria-pressed={active}
+              onClick={() => onSelectSong(song.id)}
+            >
+              <span className="song-row-name">{song.title}</span>
+              <span className="song-row-meta">{songMeta(song)}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      {selectedSong !== null && (
+        <div className="songbook-parts">
+          <span className="field-label">Parts · 声部</span>
+          <div
+            className="tsig-pills"
+            role="radiogroup"
+            aria-label={`Parts of ${selectedSong.title}`}
+          >
+            {selectedSong.parts.map((part) => {
+              const active = part.id === selectedPartId
+              return (
+                <button
+                  key={part.id}
+                  type="button"
+                  className={
+                    active ? 'tsig-pill tsig-pill-active part-pill' : 'tsig-pill part-pill'
+                  }
+                  data-testid={`part-${selectedSong.id}-${part.id}`}
+                  disabled={!enabled}
+                  aria-pressed={active}
+                  onClick={() => onSelectPart(part.id)}
+                >
+                  {part.name}
+                  <em>{part.notes.length} n</em>
+                </button>
+              )
+            })}
+          </div>
+          <div className="songbook-progress" aria-hidden="true">
+            <span className="songbook-progress-fill" style={{ width: `${progressPct}%` }} />
+          </div>
+
+          {selectedBpm !== null && (
+            <div className="song-bpm-row">
+              <span className="field-label">曲速 BPM</span>
+              <button
+                type="button"
+                className="song-bpm-btn"
+                data-testid={`song-bpm-down-${selectedSong.id}`}
+                disabled={!enabled}
+                onClick={() => onSongBpmChange?.(selectedSong.id, selectedBpm - 5)}
+              >
+                −5
+              </button>
+              <span className="song-bpm-value" data-testid={`song-bpm-value-${selectedSong.id}`}>
+                {selectedBpm}
+              </span>
+              <button
+                type="button"
+                className="song-bpm-btn"
+                data-testid={`song-bpm-up-${selectedSong.id}`}
+                disabled={!enabled}
+                onClick={() => onSongBpmChange?.(selectedSong.id, selectedBpm + 5)}
+              >
+                +5
+              </button>
+              <span className="song-bpm-hint">选曲时全房间跟随 · 演奏中可改</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="songbook-foot">
+        <button
+          type="button"
+          className={`judge-toggle${judgeEnabled ? ' judge-toggle-on' : ''}`}
+          data-testid="judge-toggle"
+          aria-pressed={judgeEnabled}
+          onClick={() => onToggleJudge?.()}
+        >
+          <span className="judge-toggle-dot" />
+          Judgment {judgeEnabled ? 'ON' : 'OFF'}
+        </button>
+        {judgeStats !== undefined && (
+          <span className="judge-stats" data-testid="judge-stats">
+            HIT <b>{judgeStats.hits}</b> · MISS <b>{judgeStats.misses}</b> · MISTAKE{' '}
+            <b>{judgeStats.mistakes}</b> · <em>{judgeStats.score} pts</em>
+          </span>
+        )}
+      </div>
+
+      {armed && (
+        <div className="songbook-actions">
+          {countdownBeatsLeft !== null && countdownBeatsLeft > 0 && (
+            <span className="songbook-countdown" data-testid="songbook-countdown">
+              准备 · <b>{countdownBeatsLeft}</b>
+            </span>
+          )}
+          <button
+            type="button"
+            className="restart-btn"
+            data-testid="restart-btn"
+            disabled={!enabled}
+            onClick={() => onRestart?.()}
+          >
+            ↻ 重新开始
+          </button>
+        </div>
+      )}
+
+      <p className="songbook-note">
+        Selection is local for now — the shared server beat keeps guides aligned. Room song sync
+        ships later.
+      </p>
+    </section>
+  )
+}

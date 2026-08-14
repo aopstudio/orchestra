@@ -1,0 +1,1662 @@
+/* ============================================================================
+   Orchestra JamPad — Phase 0 visual design system
+   Aesthetic: dark rehearsal-room / venue marquee meets instrument panel.
+   Deep indigo-black stage, warm amber stage-light + cool cyan readouts,
+   monospace instrument lettering, corner-bracketed panels, glowing keys.
+   ========================================================================== */
+
+:root {
+  /* --- color tokens --- */
+  --bg-0: #06080f; /* deepest stage floor */
+  --bg-1: #0c101d; /* panel body */
+  --bg-2: #141a2e; /* raised surface / inputs */
+  --ink: #eef1f8; /* primary text */
+  --ink-dim: #8d96ab; /* secondary text */
+  --ink-faint: #5c6579; /* captions / labels */
+  --amber: #ffb454; /* primary accent — stage light */
+  --amber-hi: #ffd9a0;
+  --cyan: #41e3c7; /* secondary accent — readout glow */
+  --cyan-hi: #8df5e2;
+  --violet: #b18cff; /* tertiary accent — other players' held keys */
+  --violet-hi: #d9c6ff;
+  --red: #ff5d5d; /* error */
+  --ivory: #f1e8d3; /* white-key surface */
+  --ivory-hi: #faf3e2;
+  --line: rgba(148, 163, 184, 0.16);
+
+  /* --- type tokens --- */
+  --font-display: 'Bungee', 'Arial Black', 'Helvetica Neue', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  /* --- spacing (4px grid) --- */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+}
+
+/* ----------------------------------------------------------------------------
+   Base
+   -------------------------------------------------------------------------- */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.5;
+  background-color: var(--bg-0);
+  background-image:
+    radial-gradient(1100px 520px at 12% -12%, rgba(255, 180, 84, 0.09), transparent 62%),
+    radial-gradient(950px 600px at 105% -8%, rgba(65, 227, 199, 0.08), transparent 58%),
+    radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size:
+    auto,
+    auto,
+    22px 22px;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ----------------------------------------------------------------------------
+   App shell
+   -------------------------------------------------------------------------- */
+
+.app {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: var(--s-6) var(--s-6) var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-6);
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-5);
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: var(--s-4);
+}
+
+.brand-kicker {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  color: var(--cyan);
+  margin-bottom: var(--s-1);
+}
+
+.brand-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(44px, 7vw, 72px);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--amber);
+  text-shadow:
+    0 0 22px rgba(255, 180, 84, 0.4),
+    0 3px 0 rgba(0, 0, 0, 0.55);
+}
+
+.tagline {
+  max-width: 440px;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--ink-dim);
+  padding-bottom: var(--s-1);
+}
+
+.tagline b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.app-main {
+  display: grid;
+  grid-template-columns: minmax(320px, 400px) 1fr;
+  gap: var(--s-5);
+  align-items: start;
+}
+
+.app-main > * {
+  min-width: 0;
+}
+
+.app-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-5);
+}
+
+.app-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  border-top: 1px solid var(--line);
+  padding-top: var(--s-3);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--ink-faint);
+}
+
+/* ----------------------------------------------------------------------------
+   Panels — corner-bracketed instrument cards
+   -------------------------------------------------------------------------- */
+
+.panel {
+  position: relative;
+  background: linear-gradient(180deg, rgba(20, 26, 46, 0.55), rgba(12, 16, 29, 0.85));
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: var(--s-4);
+}
+
+/* L-shaped corner brackets, like a scope readout frame */
+.panel::before,
+.panel::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+}
+
+.panel::before {
+  top: -1px;
+  left: -1px;
+  border-top: 2px solid var(--cyan);
+  border-left: 2px solid var(--cyan);
+}
+
+.panel::after {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 2px solid var(--amber);
+  border-right: 2px solid var(--amber);
+}
+
+.panel-title {
+  margin: 0 0 var(--s-4);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+/* ----------------------------------------------------------------------------
+   Connect form
+   -------------------------------------------------------------------------- */
+
+.connect-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.field-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.field-input {
+  appearance: none;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  padding: 9px 12px;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.field-input:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 2px rgba(255, 180, 84, 0.18);
+}
+
+/* --- buttons --- */
+
+.btn {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  border-radius: 3px;
+  padding: 11px 18px;
+  font-size: 12px;
+  text-transform: uppercase;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease,
+    background 0.12s ease,
+    opacity 0.12s ease;
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.btn-primary {
+  margin-top: var(--s-1);
+  color: #1a1405;
+  background: linear-gradient(180deg, var(--amber-hi), var(--amber));
+  box-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.4),
+    0 0 18px rgba(255, 180, 84, 0.28);
+}
+
+.btn-primary:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.4),
+    0 0 26px rgba(255, 180, 84, 0.45);
+}
+
+.btn-primary:not(:disabled):active {
+  transform: translateY(1px);
+}
+
+.btn-soundtest {
+  color: #04110e;
+  background: linear-gradient(180deg, var(--cyan-hi), var(--cyan));
+  box-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.4),
+    0 0 16px rgba(65, 227, 199, 0.25);
+}
+
+.btn-soundtest:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 3px 0 rgba(0, 0, 0, 0.4),
+    0 0 24px rgba(65, 227, 199, 0.4);
+}
+
+/* ----------------------------------------------------------------------------
+   Status panel
+   -------------------------------------------------------------------------- */
+
+.status-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  font-size: 12px;
+  color: var(--ink-dim);
+}
+
+.status-identity {
+  font-size: 12px;
+  color: var(--ink-dim);
+  line-height: 1.7;
+  word-break: break-all;
+}
+
+.status-identity b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+}
+
+.badge .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.badge-off {
+  color: var(--ink-faint);
+}
+
+.badge-busy {
+  color: var(--amber);
+}
+
+.badge-busy .dot {
+  animation: pulse 1.1s ease-in-out infinite;
+}
+
+.badge-on {
+  color: var(--cyan);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: scale(0.85);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+.peers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.peer-chip {
+  font-size: 11px;
+  color: var(--amber-hi);
+  border: 1px solid rgba(255, 180, 84, 0.35);
+  background: rgba(255, 180, 84, 0.07);
+  border-radius: 999px;
+  padding: 3px 10px;
+  letter-spacing: 0.04em;
+}
+
+.peers-empty {
+  font-size: 11px;
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+.error {
+  font-size: 12px;
+  color: var(--red);
+  border: 1px solid rgba(255, 93, 93, 0.4);
+  background: rgba(255, 93, 93, 0.08);
+  border-radius: 3px;
+  padding: var(--s-2) var(--s-3);
+  line-height: 1.6;
+}
+
+/* --- validation readouts (① key→sound ② clock ③ beat) --- */
+
+.readouts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--s-3);
+}
+
+.readout {
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: rgba(6, 8, 15, 0.6);
+  padding: var(--s-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.readout-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--ink-faint);
+  white-space: nowrap;
+}
+
+.readout-value {
+  font-size: clamp(18px, 2.2vw, 24px);
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.readout-value em {
+  font-style: normal;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  margin-left: 3px;
+}
+
+.readout-sub {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.readout-amber .readout-value {
+  color: var(--amber);
+}
+
+.readout-cyan .readout-value {
+  color: var(--cyan);
+}
+
+.readout-ink .readout-value {
+  color: var(--ink);
+}
+
+/* ----------------------------------------------------------------------------
+   Tempo control
+   -------------------------------------------------------------------------- */
+
+.metronome-toggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--ink-faint);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.metronome-toggle .metronome-toggle-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  transition:
+    background 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.metronome-toggle:hover:not(:disabled) {
+  color: var(--ink-dim);
+  border-color: var(--ink-faint);
+}
+
+.metronome-toggle-on {
+  color: var(--cyan-hi);
+  border-color: rgba(65, 227, 199, 0.5);
+  box-shadow: 0 0 12px rgba(65, 227, 199, 0.18);
+}
+
+.metronome-toggle-on .metronome-toggle-dot {
+  background: var(--cyan);
+  box-shadow: 0 0 8px rgba(65, 227, 199, 0.8);
+}
+
+.tempo-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.tempo-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.tempo-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.tempo-value {
+  font-family: var(--font-display);
+  font-size: 40px;
+  line-height: 1;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 18px rgba(255, 180, 84, 0.35);
+}
+
+.tempo-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+  outline: none;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.tempo-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--amber-hi), var(--amber));
+  border: 2px solid var(--bg-0);
+  box-shadow:
+    0 0 0 1px rgba(255, 180, 84, 0.45),
+    0 0 14px rgba(255, 180, 84, 0.55);
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease;
+}
+
+.tempo-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+  box-shadow:
+    0 0 0 1px rgba(255, 180, 84, 0.6),
+    0 0 20px rgba(255, 180, 84, 0.8);
+}
+
+.tempo-slider:focus-visible {
+  box-shadow: 0 0 0 3px rgba(255, 180, 84, 0.22);
+}
+
+.tempo-slider::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--line);
+}
+
+.tempo-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--bg-0);
+  border-radius: 50%;
+  background: linear-gradient(180deg, var(--amber-hi), var(--amber));
+  box-shadow:
+    0 0 0 1px rgba(255, 180, 84, 0.45),
+    0 0 14px rgba(255, 180, 84, 0.55);
+  cursor: pointer;
+}
+
+.tempo-slider:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tempo-slider:disabled::-webkit-slider-thumb,
+.tempo-slider:disabled::-moz-range-thumb {
+  background: var(--ink-faint);
+  box-shadow: none;
+}
+
+.tempo-range {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+.tempo-hint {
+  margin: 0;
+  font-size: 10px;
+  font-style: italic;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+
+.tempo-control-off .tempo-value {
+  color: var(--ink-dim);
+  text-shadow: none;
+}
+
+/* ----------------------------------------------------------------------------
+   Time-signature control (shares the Tempo · Meter panel with the BPM slider)
+   -------------------------------------------------------------------------- */
+
+.tsig-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+}
+
+.tsig-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+
+.tsig-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.tsig-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+}
+
+.tsig-pill {
+  appearance: none;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--bg-2);
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  padding: 7px 13px;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease,
+    box-shadow 0.12s ease,
+    transform 0.12s ease;
+}
+
+.tsig-pill:hover:not(:disabled) {
+  color: var(--cyan-hi);
+  border-color: rgba(65, 227, 199, 0.5);
+  transform: translateY(-1px);
+}
+
+.tsig-pill:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.tsig-pill-active,
+.tsig-pill-active:hover:not(:disabled) {
+  color: #04221c;
+  background: linear-gradient(180deg, var(--cyan-hi), var(--cyan));
+  border-color: var(--cyan);
+  box-shadow: 0 0 14px rgba(65, 227, 199, 0.35);
+}
+
+.tsig-hint {
+  margin: 0;
+  font-size: 10px;
+  font-style: italic;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+
+.tsig-off .tsig-pill-active,
+.tsig-off .tsig-pill-active:hover:not(:disabled) {
+  color: var(--ink-dim);
+  background: var(--bg-2);
+  border-color: var(--line);
+  box-shadow: none;
+}
+
+/* ----------------------------------------------------------------------------
+   JamPad keyboard
+   -------------------------------------------------------------------------- */
+
+.kbd-panel .panel-title {
+  margin-bottom: var(--s-3);
+}
+
+.kbd-hint {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.kbd-hint b {
+  color: var(--ink-dim);
+  font-weight: 600;
+}
+
+.kbd-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  flex-wrap: wrap;
+  margin-top: var(--s-4);
+}
+
+.keys {
+  position: relative;
+  aspect-ratio: 22 / 3.2;
+  max-width: 640px;
+  min-height: 80px;
+  border-radius: 6px;
+  padding: 0 2px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  transition:
+    opacity 0.25s ease,
+    filter 0.25s ease;
+}
+
+.keys-off {
+  opacity: 0.55;
+  filter: saturate(0.6);
+  pointer-events: none;
+}
+
+.keys-whites {
+  display: flex;
+  height: 100%;
+  gap: 2px;
+  padding: 2px;
+}
+
+.key {
+  appearance: none;
+  border: none;
+  position: relative;
+  cursor: pointer;
+  /* flex: 1 items must be allowed to shrink below their content width, or
+     22 white keys + 2px gaps overflow the .keys container and the last key
+     gets clipped by overflow:hidden. */
+  min-width: 0;
+  font-family: var(--font-mono);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  padding-bottom: 6px;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    background 0.08s ease,
+    box-shadow 0.12s ease,
+    transform 0.06s ease;
+}
+
+.key-white {
+  flex: 1;
+  background: linear-gradient(180deg, var(--ivory-hi) 0%, var(--ivory) 82%, #dcd2b6 100%);
+  border-radius: 0 0 5px 5px;
+  color: #2b2440;
+  box-shadow: inset 0 -3px 0 rgba(120, 100, 60, 0.25);
+}
+
+/* Remote note (another player holds this key): violet ring + glow, distinct
+   from the local cyan/amber pressed glow. Declared before .pressed so a key
+   held both locally and remotely keeps its local surface styling; the ring
+   still marks it as shared. */
+.key.remote {
+  outline: 2px solid rgba(177, 140, 255, 0.85);
+  outline-offset: 1px;
+}
+
+/* Octave-start caption (C3/C4/C5/C6), pinned to the top of the white key */
+.key-white .key-octave {
+  position: absolute;
+  top: 4px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: rgba(43, 36, 64, 0.38);
+  pointer-events: none;
+}
+
+.key-white.remote {
+  box-shadow:
+    inset 0 -3px 0 rgba(120, 100, 60, 0.25),
+    0 0 22px rgba(177, 140, 255, 0.5);
+}
+
+.key-white .key-letter {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.key-white .key-note {
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  color: rgba(43, 36, 64, 0.62);
+}
+
+.key-white.pressed {
+  background: linear-gradient(180deg, var(--cyan-hi) 0%, var(--cyan) 100%);
+  color: #04221c;
+  box-shadow:
+    0 0 26px rgba(65, 227, 199, 0.85),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.2);
+  transform: translateY(3px);
+}
+
+.key-white.pressed .key-note {
+  color: rgba(4, 34, 28, 0.66);
+}
+
+.keys-blacks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.key-black {
+  position: absolute;
+  top: 0;
+  width: 2.6%;
+  height: 58%;
+  /* The .keys-blacks container is pointer-events: none (so the overlay does
+     not block the white keys beneath); re-enable events on the buttons so
+     black keys are clickable. */
+  pointer-events: auto;
+  background: linear-gradient(180deg, #262e4d 0%, #141a2e 100%);
+  border-radius: 0 0 5px 5px;
+  color: #c9d2e8;
+  box-shadow:
+    0 5px 10px rgba(0, 0, 0, 0.6),
+    inset 0 2px 0 rgba(255, 255, 255, 0.08);
+  z-index: 2;
+  padding-bottom: 5px;
+  gap: 1px;
+}
+
+.key-black.remote {
+  box-shadow:
+    0 5px 10px rgba(0, 0, 0, 0.6),
+    inset 0 2px 0 rgba(255, 255, 255, 0.08),
+    0 0 22px rgba(177, 140, 255, 0.5);
+}
+
+.key-black .key-letter {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.key-black .key-note {
+  font-size: 7px;
+  letter-spacing: 0.06em;
+  color: rgba(201, 210, 232, 0.55);
+}
+
+.key-black.pressed {
+  background: linear-gradient(180deg, var(--amber-hi) 0%, var(--amber) 100%);
+  color: #2b1c05;
+  box-shadow:
+    0 0 24px rgba(255, 180, 84, 0.8),
+    inset 0 2px 0 rgba(255, 255, 255, 0.3);
+  transform: translateY(3px);
+}
+
+.key-black.pressed .key-note {
+  color: rgba(43, 28, 5, 0.6);
+}
+
+/* ----------------------------------------------------------------------------
+   Guide highlighting (Phase 1 song mode)
+   Amber layer distinct from local pressed (cyan/amber fill) and remote (violet
+   ring). guide-now wins over guide-next; both may coexist with pressed/remote.
+
+   LAYERING (later rules win; higher specificity wins):
+   1. `.pressed` fills the key cyan (white) / amber (black) + drops it 3px.
+   2. `.guide-now` comes later in the sheet: a FULL amber fill via ::before
+      (z-index:-1 inside the key's own stacking context, so it covers the base
+      surface but not the lettering), dark text, strong glow, and z-index:1 to
+      lift the glowing key above its neighbours.
+   3. `.guide-now::after` keeps a pulsing amber ring + glow on top of the fill.
+      When a white key is guide-now AND pressed, the fill is dropped
+      (`.guide-now.pressed::before { display:none }`) so the cyan press surface
+      shows; the ring + glow then read as "right note — you're on it".
+   4. `.remote`'s violet OUTLINE is a separate property, so the shared-key ring
+      survives on every state; only the glow colour yields to the guide amber.
+   -------------------------------------------------------------------------- */
+
+@keyframes guidePulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.key.guide-now {
+  z-index: 1;
+  color: #2b1c05;
+}
+
+.key.guide-now::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  z-index: -1;
+  background: linear-gradient(180deg, var(--amber-hi) 0%, var(--amber) 100%);
+  animation: guidePulse 0.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.key.guide-now::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 0 2px var(--amber),
+    0 0 18px rgba(255, 180, 84, 0.75);
+  animation: guidePulse 0.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.key-white.guide-now {
+  box-shadow:
+    0 0 26px rgba(255, 180, 84, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -3px 0 rgba(120, 80, 20, 0.45);
+}
+
+.key-white.guide-now .key-octave,
+.key-white.guide-now .key-note {
+  color: rgba(43, 28, 5, 0.66);
+}
+
+.key-black.guide-now {
+  box-shadow:
+    0 0 26px rgba(255, 180, 84, 0.9),
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -3px 0 rgba(120, 80, 20, 0.4);
+}
+
+.key-black.guide-now .key-note {
+  color: rgba(43, 28, 5, 0.6);
+}
+
+/* guide-now + pressed (white): drop the amber fill so the cyan press surface
+   stays primary; the pulsing ring + glow still mark the right note. Black
+   keys press to amber already, so their fill stays — no override needed. */
+.key-white.guide-now.pressed {
+  color: #04221c;
+  box-shadow:
+    0 0 26px rgba(255, 180, 84, 0.85),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.2);
+}
+
+.key-white.guide-now.pressed::before {
+  display: none;
+}
+
+.key-white.guide-now.pressed .key-note {
+  color: rgba(4, 34, 28, 0.66);
+}
+
+/* guide-next — arriving soon: thick amber bottom bar, never a full fill. */
+.key.guide-next {
+  box-shadow: inset 0 -6px 0 var(--amber);
+}
+
+.key-white.guide-next {
+  box-shadow:
+    inset 0 -6px 0 var(--amber),
+    0 0 12px rgba(255, 180, 84, 0.4);
+}
+
+.key-black.guide-next {
+  box-shadow:
+    inset 0 -6px 0 var(--amber),
+    inset 0 2px 0 rgba(255, 255, 255, 0.08),
+    0 0 12px rgba(255, 180, 84, 0.4);
+}
+
+/* ----------------------------------------------------------------------------
+   GuideTicker — scrolling 简谱 strip under the keyboard (Phase 1)
+   Notes laid out on a beat ruler inside a dark instrument strip; a fixed amber
+   playhead marks the current song position; the current note fills amber.
+   -------------------------------------------------------------------------- */
+
+.guide-ticker-panel {
+  padding: var(--s-3);
+  margin-top: var(--s-4);
+}
+
+.guide-ticker-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  margin-bottom: var(--s-2);
+}
+
+.guide-ticker-title {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.guide-ticker-now {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 10px rgba(255, 180, 84, 0.5);
+}
+
+.guide-ticker-now em {
+  font-style: normal;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
+  margin-left: 6px;
+}
+
+.guide-ticker-off {
+  opacity: 0.55;
+  filter: saturate(0.6);
+}
+
+.guide-ticker {
+  position: relative;
+  height: 52px;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  background: #0a0e1a;
+  box-shadow:
+    0 10px 22px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.guide-ticker-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: var(--track-w, 100%);
+  transform: translateX(var(--track-x, 0px));
+  will-change: transform;
+}
+
+.guide-tick {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 5px;
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.guide-tick-major {
+  height: 9px;
+  background: rgba(148, 163, 184, 0.38);
+}
+
+/* Prep (countdown) zone ticks: shorter and dashed to read as "empty waiting
+   beats" before the song's notes begin. */
+.guide-tick-prep {
+  height: 4px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(148, 163, 184, 0.35) 0 3px,
+    transparent 3px 6px
+  );
+}
+
+.guide-tick-prep.guide-tick-major {
+  height: 7px;
+  background: repeating-linear-gradient(90deg, rgba(255, 180, 84, 0.45) 0 3px, transparent 3px 6px);
+}
+
+.guide-note {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(148, 163, 184, 0.06);
+  color: var(--ink-dim);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.guide-note-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 2px;
+}
+
+.guide-note-past {
+  color: var(--ink-faint);
+  border-color: rgba(148, 163, 184, 0.08);
+  background: rgba(148, 163, 184, 0.03);
+}
+
+@keyframes guideCellPulse {
+  0%,
+  100% {
+    box-shadow: 0 0 10px rgba(255, 180, 84, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 22px rgba(255, 180, 84, 1);
+  }
+}
+
+.guide-note-current {
+  z-index: 1;
+  border-color: var(--amber);
+  background: linear-gradient(180deg, var(--amber-hi), var(--amber));
+  color: #2b1c05;
+  font-size: 14px;
+  font-weight: 700;
+  animation: guideCellPulse 0.8s ease-in-out infinite;
+}
+
+.guide-ticker-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 15%;
+  width: 2px;
+  z-index: 2;
+  background: var(--amber);
+  box-shadow: 0 0 10px rgba(255, 180, 84, 0.95);
+  pointer-events: none;
+}
+
+.guide-ticker-playhead::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: var(--amber);
+  filter: drop-shadow(0 0 4px rgba(255, 180, 84, 0.9));
+}
+
+.guide-ticker-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-style: italic;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+}
+
+/* ----------------------------------------------------------------------------
+   SongPicker — songbook + part arming (Phase 1)
+   -------------------------------------------------------------------------- */
+
+.songbook-armed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  color: var(--amber);
+}
+
+.songbook-armed .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 8px rgba(255, 180, 84, 0.8);
+  animation: pulse 1.1s ease-in-out infinite;
+}
+
+.songbook-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.song-row {
+  appearance: none;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  text-align: left;
+  padding: 9px 12px;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease,
+    box-shadow 0.12s ease,
+    transform 0.12s ease;
+}
+
+.song-row:hover:not(:disabled) {
+  color: var(--amber-hi);
+  border-color: rgba(255, 180, 84, 0.45);
+  transform: translateY(-1px);
+}
+
+.song-row:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.song-row-active,
+.song-row-active:hover:not(:disabled) {
+  color: #1a1405;
+  background: linear-gradient(180deg, var(--amber-hi), var(--amber));
+  border-color: var(--amber);
+  box-shadow: 0 0 14px rgba(255, 180, 84, 0.35);
+  transform: none;
+}
+
+.song-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.song-row-meta {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+.song-row-active .song-row-meta {
+  color: rgba(26, 20, 5, 0.65);
+}
+
+.songbook-parts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin-top: var(--s-4);
+  padding-top: var(--s-4);
+  border-top: 1px solid var(--line);
+}
+
+.part-pill em {
+  font-style: normal;
+  font-size: 10px;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+.songbook-progress {
+  height: 3px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  margin-top: var(--s-1);
+}
+
+.songbook-progress-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--amber), var(--amber-hi));
+  box-shadow: 0 0 8px rgba(255, 180, 84, 0.6);
+  transition: width 0.2s linear;
+}
+
+.songbook-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+  margin-top: var(--s-4);
+}
+
+.songbook-note {
+  margin: var(--s-3) 0 0;
+  font-size: 9px;
+  font-style: italic;
+  line-height: 1.6;
+  color: var(--ink-faint);
+}
+
+.songbook-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.songbook-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--amber);
+  text-shadow: 0 0 12px rgba(255, 180, 84, 0.5);
+}
+
+.songbook-countdown b {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.restart-btn {
+  appearance: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--amber-hi);
+  background: var(--bg-2);
+  border: 1px solid rgba(255, 180, 84, 0.4);
+  border-radius: 3px;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.restart-btn:hover:not(:disabled) {
+  color: #fff;
+  border-color: var(--amber);
+  box-shadow: 0 0 14px rgba(255, 180, 84, 0.35);
+}
+
+.restart-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.song-bpm-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-top: var(--s-3);
+}
+
+.song-bpm-btn {
+  appearance: none;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--cyan-hi);
+  background: var(--bg-2);
+  border: 1px solid rgba(65, 227, 199, 0.35);
+  border-radius: 3px;
+  padding: 5px 9px;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.song-bpm-btn:hover:not(:disabled) {
+  color: #fff;
+  border-color: var(--cyan);
+  box-shadow: 0 0 12px rgba(65, 227, 199, 0.3);
+}
+
+.song-bpm-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.song-bpm-value {
+  font-family: var(--font-display);
+  font-size: 18px;
+  color: var(--cyan);
+  font-variant-numeric: tabular-nums;
+  min-width: 40px;
+  text-align: center;
+}
+
+.song-bpm-hint {
+  font-size: 9px;
+  font-style: italic;
+  color: var(--ink-faint);
+  margin-left: var(--s-1);
+}
+
+/* Judge toggle — amber sibling of the cyan metronome toggle. */
+.judge-toggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--ink-faint);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition:
+    color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.judge-toggle .judge-toggle-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  transition:
+    background 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+.judge-toggle:hover {
+  color: var(--ink-dim);
+  border-color: var(--ink-faint);
+}
+
+.judge-toggle-on {
+  color: var(--amber-hi);
+  border-color: rgba(255, 180, 84, 0.5);
+  box-shadow: 0 0 12px rgba(255, 180, 84, 0.18);
+}
+
+.judge-toggle-on .judge-toggle-dot {
+  background: var(--amber);
+  box-shadow: 0 0 8px rgba(255, 180, 84, 0.8);
+}
+
+.judge-stats {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.judge-stats b {
+  color: var(--amber-hi);
+  font-weight: 600;
+}
+
+.judge-stats em {
+  font-style: normal;
+  color: var(--cyan);
+}
+
+/* ----------------------------------------------------------------------------
+   JudgeBadge — transient hit/mistake cue over the keyboard
+   -------------------------------------------------------------------------- */
+
+.pad-zone {
+  position: relative;
+  min-width: 0;
+}
+
+.judge-badge {
+  position: absolute;
+  top: var(--s-5);
+  right: var(--s-5);
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px;
+  border-radius: 3px;
+  background: rgba(6, 8, 15, 0.92);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  pointer-events: none;
+  animation: judgePop 0.28s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+@keyframes judgePop {
+  from {
+    transform: translateY(-6px) scale(0.9);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.judge-badge-hit {
+  color: var(--amber);
+  border-color: rgba(255, 180, 84, 0.5);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 180, 84, 0.25);
+}
+
+.judge-badge-hit .judge-badge-mark {
+  color: var(--cyan-hi);
+}
+
+.judge-badge-mistake {
+  color: var(--red);
+  border-color: rgba(255, 93, 93, 0.5);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.5),
+    0 0 20px rgba(255, 93, 93, 0.2);
+}
+
+.judge-badge-mark {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.judge-badge-text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+}
+
+/* ----------------------------------------------------------------------------
+   Responsive
+   -------------------------------------------------------------------------- */
+
+@media (max-width: 960px) {
+  .app-main {
+    grid-template-columns: 1fr;
+  }
+
+  .readouts {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .app {
+    padding: var(--s-4);
+  }
+
+  .readouts {
+    grid-template-columns: 1fr;
+  }
+
+  .keys {
+    aspect-ratio: 22 / 3.2;
+    min-height: 72px;
+  }
+}
