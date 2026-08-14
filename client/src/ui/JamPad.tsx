@@ -167,7 +167,12 @@ export default function JamPad({
     e.preventDefault()
     // Capture the pointer so dragging off the key still delivers the release
     // (onLostPointerCapture is the safety net for cancelled gestures).
-    e.currentTarget.setPointerCapture(e.pointerId)
+    // 捕获失败(如非活动指针)绝不能阻断发声 —— 音符照常触发。
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId)
+    } catch {
+      /* ignore: capture is an enhancement, not a requirement */
+    }
     onNoteDown(note)
   }
 

@@ -57,8 +57,10 @@ const SYNC_INTERVAL_MS = 30_000
 const SYNC_EXCHANGE_TIMEOUT_MS = 2_000
 /** How long a non-open socket is tolerated before surfacing an error. */
 const CONNECT_TIMEOUT_MS = 8_000
-/** Lookahead for local note scheduling (seconds ahead of the audio clock). */
-const LOCAL_LOOKAHEAD_SEC = 0.05
+/** 本地即时反馈的调度余量(秒)。直接乐器调用,不需要音序器级的大余量:
+ *  50ms 会让"按下到出声"明显可感知(≈80ms);10ms 只留一个渲染量子边界
+ *  的安全垫,听感即时,且永远不会排到过去(playTone 内部 max(currentTime))。 */
+const LOCAL_LOOKAHEAD_SEC = 0.01
 /** Minimum preparation beats before a song starts (the actual countdown may be
  * longer — it always ends on a bar boundary so beat 1 of the song is an accent). */
 const COUNTDOWN_BEATS = 4
