@@ -26,6 +26,8 @@ export interface Instruments {
   play(instrument: InstrumentId, note: number, velocity: number, at: number): void
   /** Play a GM drum note (35–51) at `ctx.currentTime + at` seconds. */
   drum(note: number, velocity: number, at: number): void
+  /** 设置某乐器的混音音量(0..1,作用于所有本地与远端该乐器的声音)。 */
+  setInstrumentVolume(instrument: InstrumentId, volume: number): void
 }
 
 const LOAD_TIMEOUT_MS = 10_000
@@ -76,13 +78,15 @@ function awaitReady(ready: Promise<void>, label: string): Promise<boolean> {
   })
 }
 
-/** 通用 Soundfont 加载: 成功返回实例,失败/超时返回 null(不抛出)。 */
+/** 通用 Soundfont 加载: 成功返回实例,失败/超时返回 null(不抛出)。
+ *  `destination` 把该乐器的输出路由到混音总线,实现声部音量控制。 */
 async function loadSoundfont(
   ctx: AudioContext,
   instrument: string,
+  destination: AudioNode,
 ): Promise<ReturnType<typeof Soundfont> | null> {
   try {
-    const inst = Soundfont(ctx, { instrument })
+    const inst = Soundfont(ctx, { instrument, destination })
     if (await awaitReady(inst.ready, `Soundfont ${instrument}`)) {
       return inst
     }
@@ -92,14 +96,33 @@ async function loadSoundfont(
   return null
 }
 
+/** 夹到 [0,1]。 */
+function clamp01(v: number): number {
+  return Math.min(1, Math.max(0, v))
+}
+
 export async function createInstruments(ctx: AudioContext): Promise<Instruments> {
+  // 混音总线: 每乐器一个增益 → 主增益 → 扬声器。声部音量滑块改的就是总线增益。
+  const master = ctx.createGain()
+  master.gain.value = 1
+  master.connect(ctx.destination)
+  const buses: Record<InstrumentId, GainNode> = {
+    piano: ctx.createGain(),
+    bass: ctx.createGain(),
+    drums: ctx.createGain(),
+  }
+  for (const bus of Object.values(buses)) {
+    bus.gain.value = 1
+    bus.connect(master)
+  }
+
   // 按需并行加载三个采样乐器;任一失败独立降级,不影响其他。
   const [piano, bass, drums] = await Promise.all([
-    loadSoundfont(ctx, 'acoustic_grand_piano'),
-    loadSoundfont(ctx, 'electric_bass_finger'),
+    loadSoundfont(ctx, 'acoustic_grand_piano', buses.piano),
+    loadSoundfont(ctx, 'electric_bass_finger', buses.bass),
     (async () => {
       try {
-        const inst = DrumMachine(ctx, { instrument: 'TR-808' })
+        const inst = DrumMachine(ctx, { instrument: 'TR-808', destination: buses.drums })
         if (await awaitReady(inst.ready, 'DrumMachine TR-808')) {
           return inst
         }
@@ -124,6 +147,7 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
   return {
     play(instrument, note, velocity, at) {
       const time = ctx.currentTime + at
+      const bus = buses[instrument]
       if (instrument === 'drums') {
         // drums 走 GM 鼓图
         if (drums !== null) {
@@ -135,7 +159,7 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
             console.warn('DrumMachine start failed (switching to fallback):', err)
           }
         }
-        fallbackDrum(ctx, note, velocity, time)
+        fallbackDrum(ctx, note, velocity, time, bus)
         return
       }
       const sampled = instrument === 'bass' ? bass : piano
@@ -145,15 +169,12 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
           return
         } catch (err) {
           console.warn(`Soundfont ${instrument} start failed (switching to fallback):`, err)
-          if (instrument === 'bass') {
-            // 永久降级到合成贝斯
-          }
         }
       }
       if (instrument === 'bass') {
-        fallbackBass(ctx, note, velocity, time)
+        fallbackBass(ctx, note, velocity, time, bus)
       } else {
-        fallbackPiano(ctx, note, velocity, time)
+        fallbackPiano(ctx, note, velocity, time, bus)
       }
     },
     drum(note, velocity, at) {
@@ -167,7 +188,12 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
           console.warn('DrumMachine start failed (switching to fallback):', err)
         }
       }
-      fallbackDrum(ctx, note, velocity, time)
+      fallbackDrum(ctx, note, velocity, time, buses.drums)
+    },
+    setInstrumentVolume(instrument, volume) {
+      const clamped = clamp01(volume)
+      // 平滑过渡,避免滑块拖动时爆音
+      buses[instrument].gain.setTargetAtTime(clamped, ctx.currentTime, 0.05)
     },
   }
 }
@@ -191,7 +217,7 @@ interface ToneOptions {
 }
 
 /** Oscillator + gain envelope (attack ~5ms, exponential decay). */
-function playTone(ctx: AudioContext, opts: ToneOptions): void {
+function playTone(ctx: AudioContext, opts: ToneOptions, out: AudioNode): void {
   if (ctx.state === 'closed') return
   const t0 = Math.max(opts.at, ctx.currentTime)
   const osc = ctx.createOscillator()
@@ -205,7 +231,7 @@ function playTone(ctx: AudioContext, opts: ToneOptions): void {
   gain.gain.linearRampToValueAtTime(opts.peak, t0 + 0.005)
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + opts.duration)
   osc.connect(gain)
-  gain.connect(ctx.destination)
+  gain.connect(out)
   osc.start(t0)
   osc.stop(t0 + opts.duration + 0.05)
 }
@@ -234,7 +260,7 @@ function getNoiseBuffer(ctx: AudioContext): AudioBuffer {
 }
 
 /** Filtered noise burst (hats, snare, clap, cymbals). */
-function playNoise(ctx: AudioContext, opts: NoiseOptions): void {
+function playNoise(ctx: AudioContext, opts: NoiseOptions, out: AudioNode): void {
   if (ctx.state === 'closed') return
   const t0 = Math.max(opts.at, ctx.currentTime)
   const source = ctx.createBufferSource()
@@ -249,33 +275,25 @@ function playNoise(ctx: AudioContext, opts: NoiseOptions): void {
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + opts.duration)
   source.connect(filter)
   filter.connect(gain)
-  gain.connect(ctx.destination)
+  gain.connect(out)
   source.start(t0)
   source.stop(t0 + opts.duration + 0.05)
 }
 
-function fallbackPiano(ctx: AudioContext, note: number, velocity: number, at: number): void {
+function fallbackPiano(ctx: AudioContext, note: number, velocity: number, at: number, out: AudioNode): void {
   const vel = velocity / 127
   const freq = midiToFrequency(note)
-  playTone(ctx, {
-    type: 'triangle',
-    frequency: freq,
-    at,
-    duration: 1.0,
-    peak: 0.25 * vel,
-  })
+  playTone(ctx, { type: 'triangle', frequency: freq, at, duration: 1.0, peak: 0.25 * vel }, out)
   // Subtle octave harmonic for a slightly richer tone.
-  playTone(ctx, {
-    type: 'sawtooth',
-    frequency: freq * 2.001,
-    at,
-    duration: 0.6,
-    peak: 0.07 * vel,
-  })
+  playTone(
+    ctx,
+    { type: 'sawtooth', frequency: freq * 2.001, at, duration: 0.6, peak: 0.07 * vel },
+    out,
+  )
 }
 
 /** 合成贝斯: 锯齿波 + 低通滤波 + 短时值,模拟电贝斯拨弦。 */
-function fallbackBass(ctx: AudioContext, note: number, velocity: number, at: number): void {
+function fallbackBass(ctx: AudioContext, note: number, velocity: number, at: number, out: AudioNode): void {
   const vel = velocity / 127
   const freq = midiToFrequency(note)
   const t0 = Math.max(at, ctx.currentTime)
@@ -293,116 +311,107 @@ function fallbackBass(ctx: AudioContext, note: number, velocity: number, at: num
   gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.55)
   osc.connect(filter)
   filter.connect(gain)
-  gain.connect(ctx.destination)
+  gain.connect(out)
   osc.start(t0)
   osc.stop(t0 + 0.65)
 }
 
-function fallbackDrum(ctx: AudioContext, note: number, velocity: number, at: number): void {
+function fallbackDrum(
+  ctx: AudioContext,
+  note: number,
+  velocity: number,
+  at: number,
+  out: AudioNode,
+): void {
   const vel = velocity / 127
   switch (note) {
     case 35:
     case 36: // kick: sine with 150→50Hz pitch drop
-      playTone(ctx, {
-        type: 'sine',
-        frequency: 150,
-        freqEnd: 50,
-        at,
-        duration: 0.4,
-        peak: 0.8 * vel,
-      })
+      playTone(
+        ctx,
+        { type: 'sine', frequency: 150, freqEnd: 50, at, duration: 0.4, peak: 0.8 * vel },
+        out,
+      )
       break
     case 37: // rimshot: short highpassed click
-      playNoise(ctx, {
-        at,
-        duration: 0.08,
-        peak: 0.4 * vel,
-        filterType: 'highpass',
-        filterFreq: 2000,
-      })
+      playNoise(
+        ctx,
+        { at, duration: 0.08, peak: 0.4 * vel, filterType: 'highpass', filterFreq: 2000 },
+        out,
+      )
       break
     case 38:
     case 40: // snare: tonal body + bandpassed noise
-      playTone(ctx, { type: 'triangle', frequency: 180, at, duration: 0.15, peak: 0.3 * vel })
-      playNoise(ctx, {
-        at,
-        duration: 0.18,
-        peak: 0.5 * vel,
-        filterType: 'bandpass',
-        filterFreq: 1800,
-      })
+      playTone(
+        ctx,
+        { type: 'triangle', frequency: 180, at, duration: 0.15, peak: 0.3 * vel },
+        out,
+      )
+      playNoise(
+        ctx,
+        { at, duration: 0.18, peak: 0.5 * vel, filterType: 'bandpass', filterFreq: 1800 },
+        out,
+      )
       break
     case 39: // clap
-      playNoise(ctx, {
-        at,
-        duration: 0.25,
-        peak: 0.5 * vel,
-        filterType: 'bandpass',
-        filterFreq: 1200,
-      })
+      playNoise(
+        ctx,
+        { at, duration: 0.25, peak: 0.5 * vel, filterType: 'bandpass', filterFreq: 1200 },
+        out,
+      )
       break
     case 42:
     case 44: // closed hat
-      playNoise(ctx, {
-        at,
-        duration: 0.05,
-        peak: 0.4 * vel,
-        filterType: 'highpass',
-        filterFreq: 6000,
-      })
+      playNoise(
+        ctx,
+        { at, duration: 0.05, peak: 0.4 * vel, filterType: 'highpass', filterFreq: 6000 },
+        out,
+      )
       break
     case 46: // open hat
-      playNoise(ctx, {
-        at,
-        duration: 0.25,
-        peak: 0.4 * vel,
-        filterType: 'highpass',
-        filterFreq: 6000,
-      })
+      playNoise(
+        ctx,
+        { at, duration: 0.25, peak: 0.4 * vel, filterType: 'highpass', filterFreq: 6000 },
+        out,
+      )
       break
     case 41:
     case 43:
     case 45:
     case 47: // mid/low tom
-      playTone(ctx, {
-        type: 'sine',
-        frequency: 120,
-        freqEnd: 60,
-        at,
-        duration: 0.3,
-        peak: 0.6 * vel,
-      })
+      playTone(
+        ctx,
+        { type: 'sine', frequency: 120, freqEnd: 60, at, duration: 0.3, peak: 0.6 * vel },
+        out,
+      )
       break
     case 48:
     case 50: // high tom
-      playTone(ctx, {
-        type: 'sine',
-        frequency: 180,
-        freqEnd: 90,
-        at,
-        duration: 0.25,
-        peak: 0.6 * vel,
-      })
+      playTone(
+        ctx,
+        { type: 'sine', frequency: 180, freqEnd: 90, at, duration: 0.25, peak: 0.6 * vel },
+        out,
+      )
       break
     case 49: // crash
-      playNoise(ctx, {
-        at,
-        duration: 0.8,
-        peak: 0.35 * vel,
-        filterType: 'highpass',
-        filterFreq: 4000,
-      })
+      playNoise(
+        ctx,
+        { at, duration: 0.8, peak: 0.35 * vel, filterType: 'highpass', filterFreq: 4000 },
+        out,
+      )
       break
     case 51: // cowbell
-      playTone(ctx, { type: 'square', frequency: 800, at, duration: 0.3, peak: 0.25 * vel })
+      playTone(
+        ctx,
+        { type: 'square', frequency: 800, at, duration: 0.3, peak: 0.25 * vel },
+        out,
+      )
       break
     default: // any other GM note: generic bandpassed click
-      playNoise(ctx, {
-        at,
-        duration: 0.1,
-        peak: 0.3 * vel,
-        filterType: 'bandpass',
-        filterFreq: 2500,
-      })
+      playNoise(
+        ctx,
+        { at, duration: 0.1, peak: 0.3 * vel, filterType: 'bandpass', filterFreq: 2500 },
+        out,
+      )
   }
 }

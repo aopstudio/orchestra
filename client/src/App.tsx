@@ -27,6 +27,7 @@ import { KeyState, drumNoteForKey, noteForKey } from './input/keyboard'
 import JamPad, { PAD_HIGH_NOTE, PAD_LOW_NOTE } from './ui/JamPad'
 import GuideTicker from './ui/GuideTicker'
 import StatusPanel, { type ConnState, type Peer } from './ui/StatusPanel'
+import MixerPanel from './ui/MixerPanel'
 import SongPicker from './ui/SongPicker'
 import JudgeBadge, { type JudgeBadgeData } from './ui/JudgeBadge'
 import { advanceGuide } from './guide/guideEngine'
@@ -104,6 +105,26 @@ export default function App() {
   const [downNotes, setDownNotes] = useState<ReadonlySet<number>>(() => new Set())
   const [remoteNotes, setRemoteNotes] = useState<ReadonlySet<number>>(() => new Set())
   const [soundTestBusy, setSoundTestBusy] = useState(false)
+
+  // --- Phase 1 mixer: per-instrument volume (persisted, local-only) ----------
+  const [mixVolumes, setMixVolumes] = useState<Record<InstrumentId, number>>(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('orch.mix') ?? '{}') as Record<
+        string,
+        number
+      >
+      return { piano: saved.piano ?? 1, bass: saved.bass ?? 1, drums: saved.drums ?? 1 }
+    } catch {
+      return { piano: 1, bass: 1, drums: 1 }
+    }
+  })
+  const mixVolumesRef = useRef(mixVolumes)
+  // Keep the ref pointing at the latest mix (the once-created onWelcome handler
+  // applies it when instruments first load). Updated after commit, not during
+  // render — react-hooks/refs.
+  useEffect(() => {
+    mixVolumesRef.current = mixVolumes
+  })
 
   // --- Phase 1 song-guide state ---------------------------------------------
   const [selectedSong, setSelectedSong] = useState<Song | null>(null)
@@ -197,6 +218,10 @@ export default function App() {
     if (inst === null) {
       inst = await createInstruments(ctx)
       instrumentsRef.current = inst
+      // 应用已保存的声部音量(混音总线在 createInstruments 内建好)
+      for (const [instrument, volume] of Object.entries(mixVolumesRef.current)) {
+        inst.setInstrumentVolume(instrument as InstrumentId, volume)
+      }
     }
     return inst
   }
@@ -704,6 +729,17 @@ export default function App() {
     localStorage.setItem('orch.songBpm', JSON.stringify(songBpmOverrides))
   }, [songBpmOverrides])
 
+  /** 声部音量变更: 立即作用于混音总线并持久化。 */
+  const handleMixerChange = (instrument: InstrumentId, volume: number): void => {
+    setMixVolumes((prev) => ({ ...prev, [instrument]: volume }))
+    instrumentsRef.current?.setInstrumentVolume(instrument, volume)
+  }
+
+  /** Persist mixer volumes. */
+  useEffect(() => {
+    localStorage.setItem('orch.mix', JSON.stringify(mixVolumes))
+  }, [mixVolumes])
+
   /** Pick a song: clears the armed part and applies the song's tempo room-wide. */
   const handleSelectSong = (songId: string): void => {
     const song = getSong(songId) ?? null
@@ -985,6 +1021,8 @@ export default function App() {
             bpi={bpi}
             error={error}
           />
+
+          <MixerPanel volumes={mixVolumes} onChange={handleMixerChange} />
 
           <SongPicker
             songs={SONGS}
