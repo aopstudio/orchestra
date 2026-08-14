@@ -13,9 +13,15 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { OpenSheetMusicDisplay } from 'opensheetmusicdisplay'
+import type { OpenSheetMusicDisplay } from 'opensheetmusicdisplay'
 import { songToMusicXml } from '../score/musicXml'
 import type { Song, SongPart } from '../songs/songs'
+
+/**
+ * OSMD 体积大(约 1MB),仅谱面开启时按需加载 —— 用动态 import 拆成独立 chunk。
+ */
+const loadOsmd = (): Promise<typeof import('opensheetmusicdisplay')> =>
+  import('opensheetmusicdisplay')
 
 export interface ScoreViewProps {
   song: Song
@@ -59,28 +65,36 @@ export default function ScoreView({ song, part, songBeat, enabled }: ScoreViewPr
     const container = containerRef.current
     if (container === null || !enabled) return
     let cancelled = false
-    const osmd = new OpenSheetMusicDisplay(container, {
-      autoResize: true,
-      backend: 'svg',
-      drawTitle: true,
-      drawingParameters: 'compacttight',
-    })
-    osmdRef.current = osmd
-    cursorIndexRef.current = 0
-    setRenderError(null)
-    const xml = songToMusicXml(song, part !== null ? [part.id] : undefined)
-    osmd
-      .load(xml)
-      .then(() => {
-        if (cancelled) return
-        osmd.render()
-        // 分谱模式下启用光标跟随
-        if (part !== null) {
-          osmd.cursor.show()
-        }
+    void loadOsmd()
+      .then(({ OpenSheetMusicDisplay }) => {
+        if (cancelled || containerRef.current === null) return
+        const osmd = new OpenSheetMusicDisplay(containerRef.current, {
+          autoResize: true,
+          backend: 'svg',
+          drawTitle: true,
+          drawingParameters: 'compacttight',
+        })
+        osmdRef.current = osmd
+        cursorIndexRef.current = 0
+        setRenderError(null)
+        const xml = songToMusicXml(song, part !== null ? [part.id] : undefined)
+        return osmd
+          .load(xml)
+          .then(() => {
+            if (cancelled) return
+            osmd.render()
+            // 分谱模式下启用光标跟随
+            if (part !== null) {
+              osmd.cursor.show()
+            }
+          })
+          .catch((err: unknown) => {
+            console.warn('[ScoreView] OSMD load failed:', err)
+            if (!cancelled) setRenderError(err instanceof Error ? err.message : String(err))
+          })
       })
       .catch((err: unknown) => {
-        console.warn('[ScoreView] OSMD load failed:', err)
+        console.warn('[ScoreView] OSMD module load failed:', err)
         if (!cancelled) setRenderError(err instanceof Error ? err.message : String(err))
       })
     return () => {

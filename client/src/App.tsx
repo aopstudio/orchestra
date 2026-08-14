@@ -84,7 +84,11 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 export default function App() {
   // --- form state -----------------------------------------------------------
-  const [serverUrl, setServerUrl] = useState('ws://localhost:5173/ws')
+  // 默认同源 /ws: 开发时经 Vite 代理(5173),生产时由 Node 服务器同端口托管
+  const [serverUrl, setServerUrl] = useState(() => {
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+    return `${proto}//${window.location.host}/ws`
+  })
   const [name, setName] = useState(() => `player-${Math.floor(1000 + Math.random() * 9000)}`)
   /** 加入已有房间时填写的房间码(创建房间时忽略)。 */
   const [roomCodeInput, setRoomCodeInput] = useState('')
