@@ -47,6 +47,16 @@ npm run dev:client
 
 > ⚠️ **端口 8080 冲突**：本机若有其他服务占用 8080，前端会连上不认识的协议而卡在 Connecting。E2E 使用 8081 端口规避（见 `client/playwright.config.ts` 注释）。前端 Server 输入框可以直接填 `ws://localhost:8081`。
 
+## 打包给朋友运行
+
+```bash
+npm run package   # 产出 release/orchestra-<日期>.tar.gz(源码 + 生产构建,~3MB)
+```
+
+朋友拿到后:`tar xzf orchestra-<日期>.tar.gz && cd orchestra && npm ci && npm start`,
+浏览器打开 `http://<本机IP>:8080` 即可(局域网朋友访问同一地址合奏)。
+详细说明见 `docs/friend-quickstart.md`;上公网见 `docs/deployment.md`。
+
 ## 测试与 CI
 
 GitHub Actions(`.github/workflows/ci.yml`)在每次 push / PR 自动运行:
