@@ -1,5 +1,10 @@
 # Phase 0 — Two-Browser Sync Validation Report
 
+> **Status note (2026-08-13):** 本报告为 Phase 0 历史验证记录。此后 Phase 1
+> 功能(多房间、引导/判定、声部混音、摇滚三声部曲库)已加入;当前测试规模为
+> **143 个单元测试 + 5 个 E2E 场景**,见 `docs/phase1-validation.md`。本节指标仍为
+> Phase 0 完成时的实测值。
+
 **Date:** 2026-08-11
 **Build:** `client` + `server` + `shared` npm workspaces, Node 24, Playwright 1.62 (chromium-1234)
 
@@ -19,8 +24,8 @@ npm run e2e -w client
 # Type check
 npx tsc --noEmit   # from client/
 
-# Existing unit suites (must stay green: 45 tests)
-npm test           # from repo root (server 9 + client 36)
+# Unit suites (grew since Phase 0: now 143 tests across shared/server/client)
+npm test           # from repo root
 ```
 
 All three pass. Observed E2E output (3 consecutive runs):
