@@ -331,8 +331,224 @@ const ROCK_GROOVE: Song = {
   ],
 }
 
+/**
+ * 生日快乐(公有领域)
+ * C 大调,3/4 拍,96 BPM。旋律 + 根音低音。
+ */
+const HAPPY_BIRTHDAY: Song = {
+  id: 'happy-birthday',
+  title: '生日快乐',
+  bpm: 96,
+  bpi: 3,
+  parts: [
+    {
+      id: 'melody',
+      name: '旋律',
+      instrument: 'piano',
+      notes: [
+        // 5 5 6 5 8 7- | 5 5 6 5 9 8- | 5 5 10 8 7 6 | 11 11 10 8 9 8-
+        { note: 67, beat: 0 }, { note: 67, beat: 1 }, { note: 69, beat: 2 },
+        { note: 67, beat: 3 }, { note: 72, beat: 4 }, { note: 71, beat: 5, duration: 2 },
+        { note: 67, beat: 6 }, { note: 67, beat: 7 }, { note: 69, beat: 8 },
+        { note: 67, beat: 9 }, { note: 74, beat: 10 }, { note: 72, beat: 11, duration: 2 },
+        { note: 67, beat: 12 }, { note: 67, beat: 13 }, { note: 76, beat: 14 },
+        { note: 72, beat: 15 }, { note: 71, beat: 16 }, { note: 69, beat: 17 },
+        { note: 77, beat: 18 }, { note: 77, beat: 19 }, { note: 76, beat: 20 },
+        { note: 72, beat: 21 }, { note: 74, beat: 22 }, { note: 72, beat: 23, duration: 2 },
+      ],
+    },
+    {
+      id: 'bass',
+      name: '低音',
+      instrument: 'bass',
+      notes: [
+        { note: 48, beat: 0, duration: 3 },
+        { note: 55, beat: 3, duration: 3 },
+        { note: 48, beat: 6, duration: 3 },
+        { note: 53, beat: 9, duration: 3 },
+        { note: 48, beat: 12, duration: 3 },
+        { note: 55, beat: 15, duration: 3 },
+        { note: 48, beat: 18, duration: 3 },
+        { note: 48, beat: 21, duration: 3 },
+      ],
+    },
+  ],
+}
+
+/**
+ * 两只老虎 / 雅克兄弟(公有领域轮唱曲)
+ * C 大调,4/4 拍,110 BPM。旋律 + 根音低音。
+ */
+const FRERE_JACQUES: Song = {
+  id: 'frere-jacques',
+  title: '两只老虎',
+  bpm: 110,
+  bpi: 4,
+  parts: [
+    {
+      id: 'melody',
+      name: '旋律',
+      instrument: 'piano',
+      notes: [
+        // 1 2 3 1 | 1 2 3 1 | 3 4 5- | 3 4 5-
+        { note: 60, beat: 0 }, { note: 62, beat: 1 }, { note: 64, beat: 2 }, { note: 60, beat: 3 },
+        { note: 60, beat: 4 }, { note: 62, beat: 5 }, { note: 64, beat: 6 }, { note: 60, beat: 7 },
+        { note: 64, beat: 8 }, { note: 65, beat: 9 }, { note: 67, beat: 10, duration: 2 },
+        { note: 64, beat: 12 }, { note: 65, beat: 13 }, { note: 67, beat: 14, duration: 2 },
+        // 5 6 5 4 3 1 | 5 6 5 4 3 1
+        { note: 69, beat: 16 }, { note: 67, beat: 17 }, { note: 65, beat: 18 }, { note: 64, beat: 19 },
+        { note: 64, beat: 20 }, { note: 60, beat: 21 },
+        { note: 69, beat: 22 }, { note: 67, beat: 23 }, { note: 65, beat: 24 }, { note: 64, beat: 25 },
+        { note: 64, beat: 26 }, { note: 60, beat: 27 },
+        // 2 5 1- | 2 5 1-
+        { note: 62, beat: 28 }, { note: 55, beat: 29 }, { note: 60, beat: 30, duration: 2 },
+        { note: 62, beat: 32 }, { note: 55, beat: 33 }, { note: 60, beat: 34, duration: 2 },
+      ],
+    },
+    {
+      id: 'bass',
+      name: '低音',
+      instrument: 'bass',
+      notes: [
+        { note: 48, beat: 0, duration: 4 },
+        { note: 48, beat: 4, duration: 4 },
+        { note: 48, beat: 8, duration: 4 },
+        { note: 53, beat: 12, duration: 4 },
+        { note: 53, beat: 16, duration: 4 },
+        { note: 48, beat: 20, duration: 4 },
+        { note: 55, beat: 24, duration: 4 },
+        { note: 48, beat: 28, duration: 4 },
+        { note: 48, beat: 32, duration: 4 },
+      ],
+    },
+  ],
+}
+
+/**
+ * 划船歌(公有领域童谣,节奏简化)
+ * C 大调,4/4 拍,108 BPM。旋律 + 根音低音。
+ */
+const ROW_BOAT: Song = {
+  id: 'row-boat',
+  title: '划船歌',
+  bpm: 108,
+  bpi: 4,
+  parts: [
+    {
+      id: 'melody',
+      name: '旋律',
+      instrument: 'piano',
+      notes: [
+        // 1 1 1 2 | 3 3 2 3 | 4 5 8- | 8 8 5 5 | 5 3 3 1 | 1 5 4 3 | 2 1-
+        { note: 60, beat: 0 }, { note: 60, beat: 1 }, { note: 60, beat: 2 }, { note: 62, beat: 3 },
+        { note: 64, beat: 4 }, { note: 64, beat: 5 }, { note: 62, beat: 6 }, { note: 64, beat: 7 },
+        { note: 65, beat: 8 }, { note: 67, beat: 9 }, { note: 72, beat: 10, duration: 2 },
+        { note: 72, beat: 12 }, { note: 72, beat: 13 }, { note: 67, beat: 14 }, { note: 67, beat: 15 },
+        { note: 67, beat: 16 }, { note: 64, beat: 17 }, { note: 64, beat: 18 }, { note: 60, beat: 19 },
+        { note: 60, beat: 20 }, { note: 67, beat: 21 }, { note: 65, beat: 22 }, { note: 64, beat: 23 },
+        { note: 62, beat: 24 }, { note: 60, beat: 25, duration: 2 },
+      ],
+    },
+    {
+      id: 'bass',
+      name: '低音',
+      instrument: 'bass',
+      notes: [
+        { note: 48, beat: 0, duration: 4 },
+        { note: 55, beat: 4, duration: 4 },
+        { note: 48, beat: 8, duration: 4 },
+        { note: 53, beat: 12, duration: 4 },
+        { note: 48, beat: 16, duration: 4 },
+        { note: 48, beat: 20, duration: 4 },
+        { note: 55, beat: 24, duration: 4 },
+      ],
+    },
+  ],
+}
+
+/**
+ * 十二小节布鲁斯(原创)
+ * C 调,4/4 拍,100 BPM,12 小节: C7 F7 C7 C7 | F7 F7 C7 C7 | G7 F7 C7 G7
+ * 鼓: 摇摆底鼓/军鼓/踩镲;贝斯: 根音行走;键盘: 布鲁斯 riff。
+ */
+const BLUES_12BAR: Song = {
+  id: 'blues-12bar',
+  title: '十二小节布鲁斯',
+  bpm: 100,
+  bpi: 4,
+  parts: [
+    {
+      id: 'drums',
+      name: '鼓',
+      instrument: 'drums',
+      notes: [
+        // 摇摆节奏: kick 1/3 拍、snare 2/4 拍、hat 每拍(按拍序生成)
+        ...Array.from({ length: 12 }, (_, bar) => {
+          const b = bar * 4
+          const notes: SongNote[] = []
+          for (let i = 0; i < 4; i += 1) {
+            if (i === 0 || i === 2) notes.push({ note: 36, beat: b + i }) // kick
+            if (i === 1 || i === 3) notes.push({ note: 38, beat: b + i }) // snare
+            notes.push({ note: 42, beat: b + i }) // closed hat
+          }
+          return notes
+        }).flat(),
+      ],
+    },
+    {
+      id: 'bass',
+      name: '贝斯',
+      instrument: 'bass',
+      notes: [
+        // 行走贝斯(根音 + 过音),每小节 4 个四分音符
+        // C: 48 50 52 53 | F: 53 52 50 48 | G: 55 54 52 50
+        { note: 48, beat: 0 }, { note: 50, beat: 1 }, { note: 52, beat: 2 }, { note: 53, beat: 3 },
+        { note: 53, beat: 4 }, { note: 52, beat: 5 }, { note: 50, beat: 6 }, { note: 48, beat: 7 },
+        { note: 48, beat: 8 }, { note: 50, beat: 9 }, { note: 52, beat: 10 }, { note: 53, beat: 11 },
+        { note: 48, beat: 12 }, { note: 50, beat: 13 }, { note: 52, beat: 14 }, { note: 53, beat: 15 },
+        { note: 53, beat: 16 }, { note: 52, beat: 17 }, { note: 50, beat: 18 }, { note: 48, beat: 19 },
+        { note: 53, beat: 20 }, { note: 52, beat: 21 }, { note: 50, beat: 22 }, { note: 48, beat: 23 },
+        { note: 48, beat: 24 }, { note: 50, beat: 25 }, { note: 52, beat: 26 }, { note: 53, beat: 27 },
+        { note: 48, beat: 28 }, { note: 50, beat: 29 }, { note: 52, beat: 30 }, { note: 53, beat: 31 },
+        { note: 55, beat: 32 }, { note: 54, beat: 33 }, { note: 52, beat: 34 }, { note: 50, beat: 35 },
+        { note: 53, beat: 36 }, { note: 52, beat: 37 }, { note: 50, beat: 38 }, { note: 48, beat: 39 },
+        { note: 55, beat: 40 }, { note: 54, beat: 41 }, { note: 52, beat: 42 }, { note: 50, beat: 43 },
+        { note: 55, beat: 44 }, { note: 53, beat: 45 }, { note: 50, beat: 46 }, { note: 48, beat: 47 },
+      ],
+    },
+    {
+      id: 'keys',
+      name: '键盘',
+      instrument: 'piano',
+      notes: [
+        // 布鲁斯 riff(每小节两拍一组): 降三级 → 根音 → 五级
+        { note: 63, beat: 0 }, { note: 60, beat: 1 }, { note: 67, beat: 2 }, { note: 63, beat: 3 },
+        { note: 65, beat: 4 }, { note: 65, beat: 5 }, { note: 72, beat: 6 }, { note: 65, beat: 7 },
+        { note: 63, beat: 8 }, { note: 60, beat: 9 }, { note: 67, beat: 10 }, { note: 63, beat: 11 },
+        { note: 63, beat: 12 }, { note: 60, beat: 13 }, { note: 67, beat: 14 }, { note: 63, beat: 15 },
+        { note: 65, beat: 16 }, { note: 65, beat: 17 }, { note: 72, beat: 18 }, { note: 65, beat: 19 },
+        { note: 65, beat: 20 }, { note: 65, beat: 21 }, { note: 72, beat: 22 }, { note: 65, beat: 23 },
+        { note: 63, beat: 24 }, { note: 60, beat: 25 }, { note: 67, beat: 26 }, { note: 63, beat: 27 },
+        { note: 63, beat: 28 }, { note: 60, beat: 29 }, { note: 67, beat: 30 }, { note: 63, beat: 31 },
+        { note: 67, beat: 32 }, { note: 67, beat: 33 }, { note: 74, beat: 34 }, { note: 67, beat: 35 },
+        { note: 65, beat: 36 }, { note: 65, beat: 37 }, { note: 72, beat: 38 }, { note: 65, beat: 39 },
+        { note: 67, beat: 40 }, { note: 67, beat: 41 }, { note: 74, beat: 42 }, { note: 67, beat: 43 },
+        { note: 67, beat: 44 }, { note: 63, beat: 45 }, { note: 60, beat: 46 }, { note: 62, beat: 47 },
+      ],
+    },
+  ],
+}
+
 /** 内置曲库(按 id 索引) */
-export const SONGS: Song[] = [ROCK_GROOVE, TWINKLE, ODE_TO_JOY]
+export const SONGS: Song[] = [
+  ROCK_GROOVE,
+  BLUES_12BAR,
+  TWINKLE,
+  ODE_TO_JOY,
+  HAPPY_BIRTHDAY,
+  FRERE_JACQUES,
+  ROW_BOAT,
+]
 
 export function getSong(id: string): Song | undefined {
   return SONGS.find((s) => s.id === id)

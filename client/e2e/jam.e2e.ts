@@ -370,3 +370,47 @@ test('score view renders OSMD sheet music and follows the armed part', async ({ 
 
   await ctx.close()
 })
+
+test('song studio: record a few notes, save as a song, and arm it from the library', async ({
+  browser,
+}) => {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  await createRoom(page, 'Composer')
+  await waitInstrumentsReady(page)
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
+
+  // 开始录制并弹几个音(先等节拍网格就绪: 录制锚点需要服务器拍)
+  await expect
+    .poll(() => page.getByTestId('readout-beat').locator('.readout-value').textContent(), {
+      timeout: 20_000,
+    })
+    .not.toBe('—')
+  await page.getByTestId('record-btn').click()
+  await expect(page.getByTestId('recording-badge')).toBeVisible()
+  await page.waitForTimeout(500) // 确保至少收到一条时钟(录制锚点)
+  await page.keyboard.press('a')
+  await page.waitForTimeout(300)
+  await page.keyboard.press('s')
+  await page.waitForTimeout(300)
+  await page.keyboard.press('d')
+  await page.getByTestId('stop-btn').click()
+  // 录到音 → 保存区(标题输入 + 保存按钮)出现
+  await expect(page.getByTestId('song-title-input')).toBeVisible()
+
+  // 保存 → 曲库列表出现自定义曲目
+  await page.getByTestId('song-title-input').fill('我的测试曲')
+  await page.getByTestId('save-song-btn').click()
+  await expect(page.getByTestId('song-custom-')).toHaveCount(0) // id 随机,按标题断言
+  await expect(page.locator('.song-row', { hasText: '我的测试曲' })).toBeVisible()
+
+  // 可以选中并武装(进入引导管线)
+  await page.locator('.song-row', { hasText: '我的测试曲' }).click()
+  await expect(page.getByTestId('part-')).toHaveCount(0)
+  const partPills = page.locator('.part-pill')
+  expect(await partPills.count()).toBeGreaterThan(0)
+  await partPills.first().click()
+  await expect(page.getByTestId('songbook-countdown')).toBeVisible()
+
+  await ctx.close()
+})

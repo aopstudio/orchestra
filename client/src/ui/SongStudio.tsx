@@ -1,0 +1,150 @@
+/**
+ * SongStudio — 曲目编辑器(Phase 2): 录制 → 谱面 → 分享。
+ *
+ * 录制: 连接后点「开始录制」,之后所有本地弹奏(键盘/鼠标/MIDI)的按键
+ * 都会按节拍网格量化记录(在 App 的 noteOn 内挂钩)。停止后可以:
+ * - 命名并保存到自定义曲库(立即出现在曲库列表,可进引导/判定/谱面)
+ * - 导出 JSON 文本分享给朋友;朋友导入粘贴即可拥有同一首曲子
+ */
+
+import { useState } from 'react'
+
+export interface SongStudioProps {
+  enabled: boolean
+  /** 录制中(由 App 维护录制状态与音符收集)。 */
+  recording: boolean
+  onStartRecording: () => void
+  onStopRecording: () => void
+  /** 已录音符数。 */
+  recordedCount: number
+  /** 保存录音为曲目(title 来自输入框)。 */
+  onSave: (title: string) => void
+  /** 导入 JSON 文本;返回是否成功。 */
+  onImport: (text: string) => boolean
+  /** 最近一次导出文本(用于展示与复制)。 */
+  exportText: string | null
+}
+
+export default function SongStudio({
+  enabled,
+  recording,
+  onStartRecording,
+  onStopRecording,
+  recordedCount,
+  onSave,
+  onImport,
+  exportText,
+}: SongStudioProps) {
+  const [title, setTitle] = useState('我的新曲')
+  const [importText, setImportText] = useState('')
+  const [importResult, setImportResult] = useState<'ok' | 'fail' | null>(null)
+
+  return (
+    <section className="panel studio-panel">
+      <h2 className="panel-title">
+        <span>Song Studio · 录制</span>
+        {recording && (
+          <span className="recording-badge" data-testid="recording-badge">
+            <span className="dot" />
+            REC
+          </span>
+        )}
+      </h2>
+
+      <div className="studio-row">
+        {!recording ? (
+          <button
+            type="button"
+            className="btn btn-primary"
+            data-testid="record-btn"
+            disabled={!enabled}
+            onClick={onStartRecording}
+          >
+            开始录制
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="btn btn-rec-stop"
+            data-testid="stop-btn"
+            onClick={onStopRecording}
+          >
+            停止录制({recordedCount} 音)
+          </button>
+        )}
+        <span className="studio-hint" data-testid="studio-status">
+          {recording
+            ? `已录 ${recordedCount} 个音 · 弹奏会按节拍网格量化`
+            : '录制将捕捉键盘/鼠标/MIDI 弹奏,量化到节拍网格'}
+        </span>
+      </div>
+
+      {!recording && recordedCount > 0 && (
+        <div className="studio-row">
+          <input
+            className="field-input"
+            data-testid="song-title-input"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            spellCheck={false}
+          />
+          <button
+            type="button"
+            className="btn btn-save"
+            data-testid="save-song-btn"
+            onClick={() => onSave(title.trim() === '' ? '未命名曲目' : title.trim())}
+          >
+            保存到曲库
+          </button>
+        </div>
+      )}
+
+      {exportText !== null && (
+        <details className="studio-details">
+          <summary>导出 JSON(复制发给朋友)</summary>
+          <textarea
+            className="studio-json"
+            readOnly
+            data-testid="export-text"
+            value={exportText}
+            onFocus={(e) => e.currentTarget.select()}
+          />
+        </details>
+      )}
+
+      <div className="studio-row studio-import">
+        <textarea
+          className="studio-json"
+          data-testid="import-text"
+          placeholder="粘贴朋友分享的曲目 JSON…"
+          value={importText}
+          onChange={(e) => {
+            setImportText(e.target.value)
+            setImportResult(null)
+          }}
+        />
+        <button
+          type="button"
+          className="btn btn-import"
+          data-testid="import-btn"
+          disabled={!enabled || importText.trim() === ''}
+          onClick={() => {
+            setImportResult(onImport(importText) ? 'ok' : 'fail')
+          }}
+        >
+          导入
+        </button>
+        {importResult === 'ok' && (
+          <span className="studio-hint ok" data-testid="import-ok">
+            导入成功,已加入曲库
+          </span>
+        )}
+        {importResult === 'fail' && (
+          <span className="studio-hint err" data-testid="import-fail">
+            JSON 无效或结构不正确
+          </span>
+        )}
+      </div>
+    </section>
+  )
+}

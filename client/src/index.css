@@ -602,6 +602,96 @@ button {
   color: #ff8d7a;
 }
 
+/* --- song studio (recorder) --- */
+
+.studio-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.studio-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+.studio-hint {
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
+.studio-hint.ok {
+  color: var(--cyan);
+}
+
+.studio-hint.err {
+  color: #ff8d7a;
+}
+
+.recording-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: #ff5a4e;
+}
+
+.recording-badge .dot {
+  animation: rec-blink 1s ease-in-out infinite;
+}
+
+@keyframes rec-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.btn-rec-stop {
+  color: #fff;
+  background: linear-gradient(180deg, #ff7a6e, #e0483c);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
+}
+
+.btn-save {
+  color: #04110e;
+  background: linear-gradient(180deg, var(--cyan-hi), var(--cyan));
+}
+
+.btn-import {
+  color: #101224;
+  background: linear-gradient(180deg, #b28cff, #8a5cf6);
+}
+
+.studio-json {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  padding: 8px 10px;
+}
+
+.studio-details summary {
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--ink-dim);
+  margin-bottom: var(--s-2);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;

@@ -29,6 +29,13 @@ import JamPad, { PAD_HIGH_NOTE, PAD_LOW_NOTE } from './ui/JamPad'
 import GuideTicker from './ui/GuideTicker'
 import DrumPad from './ui/DrumPad'
 import ScoreView from './ui/ScoreView'
+import SongStudio from './ui/SongStudio'
+import {
+  exportSongJson,
+  importSongJson,
+  loadCustomSongs,
+  saveCustomSongs,
+} from './songs/customSongs'
 import StatusPanel, { type ConnState, type Peer } from './ui/StatusPanel'
 import MixerPanel from './ui/MixerPanel'
 import SongPicker from './ui/SongPicker'
@@ -36,7 +43,7 @@ import JudgeBadge, { type JudgeBadgeData } from './ui/JudgeBadge'
 import { advanceGuide } from './guide/guideEngine'
 import { nextBarBoundary } from './guide/barBoundary'
 import { Judge, type JudgeStats } from './guide/judge'
-import { SONGS, getSong, type Song, type SongPart } from './songs/songs'
+import { SONGS, type Song, type SongNote, type SongPart } from './songs/songs'
 
 /** How often the NTP-style clock estimate is refreshed. */
 const SYNC_INTERVAL_MS = 30_000
@@ -159,6 +166,14 @@ export default function App() {
   const [showScore, setShowScore] = useState(() => localStorage.getItem('orch.showScore') === '1')
   /** 歌曲当前位置(拍,相对歌曲起点)——驱动谱面跟随高亮。 */
   const [songBeatState, setSongBeatState] = useState<number | null>(null)
+
+  // --- Phase 2 song studio: recording + custom library ----------------------
+  const [customSongs, setCustomSongs] = useState<Song[]>(() => loadCustomSongs())
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordedCount, setRecordedCount] = useState(0)
+  const [exportText, setExportText] = useState<string | null>(null)
+  /** 录制会话: 起点服务器拍 + 收集的音符。 */
+  const recordingRef = useRef<{ startBeat: number; notes: SongNote[] } | null>(null)
   /** Guide window: MIDI notes to press now / arriving soon, from the guide engine. */
   const [guideCurrent, setGuideCurrent] = useState<ReadonlySet<number>>(() => new Set())
   const [guideUpcoming, setGuideUpcoming] = useState<ReadonlySet<number>>(() => new Set())
@@ -698,6 +713,16 @@ export default function App() {
    */
   const noteOn = (note: number, oneShot = false, velocity = 100): void => {
     if (connStateRef.current !== 'connected') return
+
+    // --- Phase 2 song studio: capture every local press into the recording ---
+    const rec = recordingRef.current
+    if (rec !== null && latestBeatRef.current !== null) {
+      // 量化到 0.5 拍(与曲库格式一致,支持八分音符)
+      const beat = Math.round((latestBeatRef.current - rec.startBeat) * 2) / 2
+      rec.notes.push({ note, beat })
+      setRecordedCount(rec.notes.length)
+    }
+
     if (!oneShot) {
       if (heldNotesRef.current.has(note)) return
       heldNotesRef.current.add(note)
@@ -807,6 +832,84 @@ export default function App() {
     })
   }
 
+  /** 开始录制: 以当前服务器拍为锚点,之后所有本地弹奏进入录音。 */
+  const handleStartRecording = (): void => {
+    if (latestBeatRef.current === null) {
+      setError('等待节拍网格就绪后再录制(连接后约 1 秒)')
+      return
+    }
+    recordingRef.current = { startBeat: latestBeatRef.current, notes: [] }
+    setRecordedCount(0)
+    setExportText(null)
+    setIsRecording(true)
+  }
+
+  /** 停止录制: 保留音符,展示导出文本,等待命名保存。 */
+  const handleStopRecording = (): void => {
+    const rec = recordingRef.current
+    if (rec === null) return
+    setIsRecording(false)
+    // 按拍序排序 + 去重(同音同拍只留一次)
+    const notes = rec.notes
+      .sort((a, b) => a.beat - b.beat || a.note - b.note)
+      .filter((n, i, arr) => i === 0 || n.beat !== arr[i - 1]!.beat || n.note !== arr[i - 1]!.note)
+    recordingRef.current = { ...rec, notes }
+    setRecordedCount(notes.length)
+    if (notes.length > 0) {
+      setExportText(
+        exportSongJson({
+          id: 'custom-draft',
+          title: '我的新曲',
+          bpm: bpmRef.current,
+          bpi: bpiRef.current,
+          parts: [
+            {
+              id: 'part1',
+              name: '自录',
+              instrument: currentInstrument(),
+              notes,
+            },
+          ],
+        }),
+      )
+    }
+  }
+
+  /** 保存录音到自定义曲库(立即可选、可进引导/判定/谱面)。 */
+  const handleSaveRecording = (title: string): void => {
+    const rec = recordingRef.current
+    if (rec === null || rec.notes.length === 0) return
+    const song: Song = {
+      id: `custom-${Date.now().toString(36)}`,
+      title,
+      bpm: bpmRef.current,
+      bpi: bpiRef.current,
+      parts: [
+        {
+          id: 'part1',
+          name: '自录',
+          instrument: currentInstrument(),
+          notes: rec.notes,
+        },
+      ],
+    }
+    const next = [...customSongs, song]
+    setCustomSongs(next)
+    saveCustomSongs(next)
+    setExportText(exportSongJson(song))
+    setError(null)
+  }
+
+  /** 导入朋友分享的 JSON 曲目;成功返回 true。 */
+  const handleImportSong = (text: string): boolean => {
+    const song = importSongJson(text)
+    if (song === null) return false
+    const next = [...customSongs, song]
+    setCustomSongs(next)
+    saveCustomSongs(next)
+    return true
+  }
+
   /** Persist per-song BPM overrides. */
   useEffect(() => {
     localStorage.setItem('orch.songBpm', JSON.stringify(songBpmOverrides))
@@ -825,7 +928,9 @@ export default function App() {
 
   /** Pick a song: clears the armed part and applies the song's tempo room-wide. */
   const handleSelectSong = (songId: string): void => {
-    const song = getSong(songId) ?? null
+    // 内置 + 自定义曲库中查找
+    const allSongs = [...SONGS, ...customSongs]
+    const song = allSongs.find((s) => s.id === songId) ?? null
     setSelectedSong(song)
     setSelectedPart(null)
     selectedPartRef.current = null
@@ -1154,7 +1259,7 @@ export default function App() {
           <MixerPanel volumes={mixVolumes} onChange={handleMixerChange} />
 
           <SongPicker
-            songs={SONGS}
+            songs={[...SONGS, ...customSongs]}
             selectedSongId={selectedSong?.id ?? null}
             onSelectSong={handleSelectSong}
             selectedPartId={selectedPart?.id ?? null}
@@ -1172,6 +1277,17 @@ export default function App() {
             onGuideModeChange={handleGuideModeChange}
             showScore={showScore}
             onToggleScore={handleToggleScore}
+          />
+
+          <SongStudio
+            enabled={connState === 'connected'}
+            recording={isRecording}
+            onStartRecording={handleStartRecording}
+            onStopRecording={handleStopRecording}
+            recordedCount={recordedCount}
+            onSave={handleSaveRecording}
+            onImport={handleImportSong}
+            exportText={exportText}
           />
 
           <section className="panel">
