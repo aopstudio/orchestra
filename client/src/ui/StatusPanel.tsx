@@ -19,6 +19,8 @@ export interface Peer {
 export interface StatusPanelProps {
   connState: ConnState
   serverUrl: string
+  /** 所在房间码(welcome 下发后展示,供分享给队友)。 */
+  roomCode: string | null
   myName: string
   myId: string | null
   peers: Peer[]
@@ -70,6 +72,7 @@ export default function StatusPanel(props: StatusPanelProps) {
   const {
     connState,
     serverUrl,
+    roomCode,
     myName,
     myId,
     peers,
@@ -110,6 +113,12 @@ export default function StatusPanel(props: StatusPanelProps) {
           <b>{myName}</b> · {myId === null ? 'not joined' : `id ${myId.slice(0, 8)}`}
           <br />
           {serverUrl}
+          {roomCode !== null && (
+            <span className="room-code" data-testid="room-code">
+              {' '}
+              · ROOM <b>{roomCode}</b>
+            </span>
+          )}
         </div>
 
         <div className="readouts">
@@ -157,7 +166,11 @@ export default function StatusPanel(props: StatusPanelProps) {
           </div>
         )}
 
-        {error !== null && <div className="error">{error}</div>}
+        {error !== null && (
+          <div className="error" data-testid="error-box">
+            {error}
+          </div>
+        )}
       </div>
     </section>
   )

@@ -93,11 +93,34 @@ test('bpi 广播形状(带服务器时间戳)', () => {
   }>()
 })
 
-test('welcome 消息形状', () => {
+test('createRoom 消息形状', () => {
+  expectTypeOf<Extract<ClientMsg, { type: 'createRoom' }>>().toEqualTypeOf<{
+    type: 'createRoom'
+    name: string
+  }>()
+})
+
+test('join 消息形状(带房间码)', () => {
+  expectTypeOf<Extract<ClientMsg, { type: 'join' }>>().toEqualTypeOf<{
+    type: 'join'
+    name: string
+    roomCode: string
+  }>()
+})
+
+test('roomError 消息形状', () => {
+  expectTypeOf<Extract<ServerMsg, { type: 'roomError' }>>().toEqualTypeOf<{
+    type: 'roomError'
+    message: string
+  }>()
+})
+
+test('welcome 消息形状(带房间码)', () => {
   expectTypeOf<Extract<ServerMsg, { type: 'welcome' }>>().toEqualTypeOf<{
     type: 'welcome'
     id: string
     name: string
+    roomCode: string
     bpm: number
     bpi: number
   }>()

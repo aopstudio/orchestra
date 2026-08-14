@@ -32,13 +32,29 @@ async function blockCdn(page: Page): Promise<void> {
   await page.route(SMPLR_CDN, (route) => route.abort())
 }
 
-/** Fill the server + name, connect, and wait until the server has welcomed us in. */
-async function connect(page: Page, name: string): Promise<void> {
+/** Open the app, fill server + name, and click the given action button. */
+async function openForm(page: Page, name: string): Promise<void> {
   await blockCdn(page)
   await page.goto(E2E_URL)
   await page.locator('label.field', { hasText: 'Server' }).locator('input').fill(WS_URL)
   await page.getByTestId('name-input').fill(name)
-  await page.getByTestId('connect-btn').click()
+}
+
+/** Create a brand-new room and wait for the welcome. Returns the room code. */
+async function createRoom(page: Page, name: string): Promise<string> {
+  await openForm(page, name)
+  await page.getByTestId('create-btn').click()
+  await expect(page.getByTestId('conn-badge')).toHaveText('CONNECTED', { timeout: 20_000 })
+  const code = await page.getByTestId('room-code').locator('b').textContent()
+  expect(code).toMatch(/^[A-Z2-9]{6}$/)
+  return code ?? ''
+}
+
+/** Join an existing room by code and wait for the welcome. */
+async function joinRoom(page: Page, name: string, code: string): Promise<void> {
+  await openForm(page, name)
+  await page.getByTestId('room-code-input').fill(code)
+  await page.getByTestId('join-btn').click()
   await expect(page.getByTestId('conn-badge')).toHaveText('CONNECTED', { timeout: 20_000 })
 }
 
@@ -61,20 +77,20 @@ function readoutNumber(text: string | null): number | null {
 test('two browsers join the room, exchange notes, and show validation readouts', async ({
   browser,
 }) => {
-  // --- page A ---------------------------------------------------------------
+  // --- page A creates a room ------------------------------------------------
   const ctxA = await browser.newContext()
   const pageA = await ctxA.newPage()
-  await connect(pageA, 'TestA')
+  const roomCode = await createRoom(pageA, 'TestA')
 
   // All three validation readouts are rendered.
   await expect(pageA.getByTestId('readout-latency')).toBeVisible()
   await expect(pageA.getByTestId('readout-offset')).toBeVisible()
   await expect(pageA.getByTestId('readout-beat')).toBeVisible()
 
-  // --- page B joins ---------------------------------------------------------
+  // --- page B joins A's room by code ---------------------------------------
   const ctxB = await browser.newContext()
   const pageB = await ctxB.newPage()
-  await connect(pageB, 'TestB')
+  await joinRoom(pageB, 'TestB', roomCode)
 
   // The room roster on A must now include TestB.
   await expect(pageA.getByTestId('peers')).toContainText('TestB', { timeout: 20_000 })
@@ -145,15 +161,46 @@ test('two browsers join the room, exchange notes, and show validation readouts',
     console.log('[e2e] key->sound latency readout: not available in headless')
   }
 
+  // --- room isolation check: a second room does NOT receive B's notes -------
+  // Creates a brand-new room on a third page; its note counter must stay 0
+  // while B plays (proving multi-room isolation, not just transport).
+  const ctxC = await browser.newContext()
+  const pageC = await ctxC.newPage()
+  await createRoom(pageC, 'TestC')
+  await waitInstrumentsReady(pageC)
+  await pageC.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
+
+  await pageB.keyboard.press('d')
+  await pageB.keyboard.press('f')
+  // Give the relay a generous window; the isolated room must never see them.
+  await pageC.waitForTimeout(1500)
+  const isolatedCount = await pageC.evaluate(() => window.__orchNotes ?? 0)
+  expect(isolatedCount).toBe(0)
+  console.log('[e2e] room isolation: other-room note counter stays 0')
+
   // --- final readout snapshot for the validation report ----------------------
   const snapshot = await pageA.evaluate(() => ({
     latency: document.querySelector('[data-testid="readout-latency"]')?.textContent ?? '',
     offset: document.querySelector('[data-testid="readout-offset"]')?.textContent ?? '',
     beat: document.querySelector('[data-testid="readout-beat"]')?.textContent ?? '',
     peers: document.querySelector('[data-testid="peers"]')?.textContent ?? '',
+    room: document.querySelector('[data-testid="room-code"]')?.textContent ?? '',
   }))
   console.log(`[e2e] readout snapshot A: ${JSON.stringify(snapshot)}`)
 
   await ctxA.close()
   await ctxB.close()
+  await ctxC.close()
+})
+
+test('joining a non-existent room surfaces a room error and allows retry', async ({ browser }) => {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  await openForm(page, 'Solo')
+  await page.getByTestId('room-code-input').fill('NOPE42')
+  await page.getByTestId('join-btn').click()
+  // The server rejects with a roomError; the app surfaces it and goes idle.
+  await expect(page.getByTestId('error-box')).toContainText('NOPE42', { timeout: 20_000 })
+  await expect(page.getByTestId('conn-badge')).toHaveText('OFFLINE', { timeout: 20_000 })
+  await ctx.close()
 })

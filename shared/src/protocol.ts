@@ -9,7 +9,8 @@
 
 /** 客户端 → 服务器 */
 export type ClientMsg =
-  | { type: 'join'; name: string }
+  | { type: 'createRoom'; name: string }
+  | { type: 'join'; name: string; roomCode: string }
   | { type: 'note'; note: number; velocity: number }
   | { type: 'noteOff'; note: number }
   | { type: 'setTempo'; bpm: number }
@@ -18,7 +19,8 @@ export type ClientMsg =
 
 /** 服务器 → 客户端 */
 export type ServerMsg =
-  | { type: 'welcome'; id: string; name: string; bpm: number; bpi: number }
+  | { type: 'welcome'; id: string; name: string; roomCode: string; bpm: number; bpi: number }
+  | { type: 'roomError'; message: string }
   | { type: 'peerJoined'; id: string; name: string }
   | { type: 'peerLeft'; id: string }
   | { type: 'clock'; beat: number; tempo: number; bpi: number; serverTime: number }

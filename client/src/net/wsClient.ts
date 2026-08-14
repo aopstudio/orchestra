@@ -11,6 +11,7 @@ import type { ClientMsg, ServerMsg } from '@orchestra/shared'
 
 /** Discriminated-union extraction: the per-type server messages. */
 type WelcomeMsg = Extract<ServerMsg, { type: 'welcome' }>
+type RoomErrorMsg = Extract<ServerMsg, { type: 'roomError' }>
 type PeerJoinedMsg = Extract<ServerMsg, { type: 'peerJoined' }>
 type PeerLeftMsg = Extract<ServerMsg, { type: 'peerLeft' }>
 type ClockMsg = Extract<ServerMsg, { type: 'clock' }>
@@ -20,9 +21,13 @@ type TempoMsg = Extract<ServerMsg, { type: 'tempo' }>
 type BpiMsg = Extract<ServerMsg, { type: 'bpi' }>
 type SyncAckMsg = Extract<ServerMsg, { type: 'syncAck' }>
 
+/** 加入房间的意图: 创建新房间或凭码加入已有房间。断线重连后按此意图重新加入。 */
+type JoinIntent = { kind: 'create'; name: string } | { kind: 'join'; name: string; roomCode: string }
+
 /** Per-message-type callbacks. Unknown message types are ignored. */
 export interface WsHandlers {
   onWelcome(msg: WelcomeMsg): void
+  onRoomError(msg: RoomErrorMsg): void
   onPeerJoined(msg: PeerJoinedMsg): void
   onPeerLeft(msg: PeerLeftMsg): void
   onClock(msg: ClockMsg): void
@@ -41,11 +46,12 @@ export class WsClient {
   private reconnectAttempts = 0
   /** When false, a closed socket stays closed (explicit close or never connected). */
   private reconnectFlag = false
+  /** 入房意图: 连接建立(含重连)后自动发送。 */
+  private intent: JoinIntent | null = null
 
   constructor(
     private readonly url: string,
     private readonly handlers: WsHandlers,
-    private readonly name = 'guest',
   ) {}
 
   /** Opens the connection (or reopens after a close). Resets the reconnect flag and backoff. */
@@ -61,9 +67,16 @@ export class WsClient {
     this.openSocket()
   }
 
-  /** Sends a `join` message with the given display name. */
-  join(name: string): void {
-    this.send({ type: 'join', name })
+  /** 记录"创建房间"意图并立即发送(若连接未就绪则在 open 后发送)。 */
+  createRoom(name: string): void {
+    this.intent = { kind: 'create', name }
+    this.trySendIntent()
+  }
+
+  /** 记录"凭码加入"意图并立即发送(若连接未就绪则在 open 后发送)。 */
+  joinRoom(roomCode: string, name: string): void {
+    this.intent = { kind: 'join', name, roomCode }
+    this.trySendIntent()
   }
 
   /** Sends a `note` message (note is a MIDI number). */
@@ -109,13 +122,29 @@ export class WsClient {
     return this.ws ? this.ws.readyState : WebSocket.CLOSED
   }
 
+  private trySendIntent(): void {
+    if (this.ws !== null && this.ws.readyState === WebSocket.OPEN && this.intent !== null) {
+      this.sendIntent(this.intent)
+    }
+  }
+
+  private sendIntent(intent: JoinIntent): void {
+    if (intent.kind === 'create') {
+      this.send({ type: 'createRoom', name: intent.name })
+    } else {
+      this.send({ type: 'join', name: intent.name, roomCode: intent.roomCode })
+    }
+  }
+
   private openSocket(): void {
     const ws = new WebSocket(this.url)
     this.ws = ws
 
     ws.onopen = () => {
       this.reconnectAttempts = 0
-      this.send({ type: 'join', name: this.name })
+      if (this.intent !== null) {
+        this.sendIntent(this.intent)
+      }
     }
 
     ws.onmessage = (event: MessageEvent) => {
@@ -169,6 +198,9 @@ export class WsClient {
     switch (parsed.type) {
       case 'welcome':
         this.handlers.onWelcome(parsed as WelcomeMsg)
+        break
+      case 'roomError':
+        this.handlers.onRoomError(parsed as RoomErrorMsg)
         break
       case 'peerJoined':
         this.handlers.onPeerJoined(parsed as PeerJoinedMsg)

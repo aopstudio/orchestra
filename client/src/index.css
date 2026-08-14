@@ -258,6 +258,28 @@ button {
   box-shadow: 0 0 0 2px rgba(255, 180, 84, 0.18);
 }
 
+/* Room code input: monospace, wider letter-spacing, centred */
+.field-input-code {
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+}
+
+.field-hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+}
+
+.connect-actions {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.connect-actions .btn {
+  flex: 1;
+}
+
 /* --- buttons --- */
 
 .btn {
@@ -347,6 +369,12 @@ button {
 .status-identity b {
   color: var(--ink);
   font-weight: 600;
+}
+
+.room-code b {
+  font-family: var(--font-mono);
+  letter-spacing: 0.28em;
+  color: var(--amber);
 }
 
 .badge {

@@ -81,11 +81,15 @@ export default function App() {
   // --- form state -----------------------------------------------------------
   const [serverUrl, setServerUrl] = useState('ws://localhost:5173/ws')
   const [name, setName] = useState(() => `player-${Math.floor(1000 + Math.random() * 9000)}`)
+  /** 加入已有房间时填写的房间码(创建房间时忽略)。 */
+  const [roomCodeInput, setRoomCodeInput] = useState('')
 
   // --- connection / room state ----------------------------------------------
   const [connState, setConnState] = useState<ConnState>('idle')
   const [error, setError] = useState<string | null>(null)
   const [myId, setMyId] = useState<string | null>(null)
+  /** 所在房间码(welcome 下发;创建/加入成功后展示给队友)。 */
+  const [roomCode, setRoomCode] = useState<string | null>(null)
   const [peers, setPeers] = useState<Peer[]>([])
   const [bpm, setBpm] = useState(120)
   const [bpi, setBpi] = useState(4)
@@ -322,6 +326,7 @@ export default function App() {
     handlersRef.current = {
       onWelcome: (msg) => {
         setMyId(msg.id)
+        setRoomCode(msg.roomCode)
         setBpm(msg.bpm)
         setBpi(msg.bpi)
         bpmRef.current = msg.bpm
@@ -351,6 +356,17 @@ export default function App() {
             })
             .catch((err) => console.warn('[App] instrument load failed:', err))
         })()
+      },
+
+      onRoomError: (msg) => {
+        // 房间不存在/已满: 保持 socket 断开以便用户改码重试。
+        // 关闭 ws 后 handleConnect 才能创建新连接(它对已 OPEN/CONNECTING
+        // 的 socket 会直接返回)。
+        console.warn('[App] room error:', msg.message)
+        wsRef.current?.close()
+        wsRef.current = null
+        setError(msg.message)
+        setConnState('idle')
       },
 
       onPeerJoined: (msg) => {
@@ -493,13 +509,18 @@ export default function App() {
 
   // --- user interactions -----------------------------------------------------
 
-  /** Connect button: creates the AudioContext (user gesture) and the socket. */
-  const handleConnect = async (): Promise<void> => {
+  /** Create/Join: creates the AudioContext (user gesture) and the socket, then
+   *  sends the room intent (createRoom or join with code). */
+  const handleConnect = async (mode: 'create' | 'join'): Promise<void> => {
     const ws = wsRef.current
     if (
       ws !== null &&
       (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)
     ) {
+      return
+    }
+    if (mode === 'join' && roomCodeInput.trim() === '') {
+      setError('请先填写要加入的房间码')
       return
     }
     setError(null)
@@ -511,9 +532,14 @@ export default function App() {
         throw new Error('internal error: protocol handlers not initialised')
       }
       const displayName = name.trim() === '' ? 'player' : name.trim()
-      const next = new WsClient(urlRef.current, handlers, displayName)
+      const next = new WsClient(urlRef.current, handlers)
       wsRef.current = next
       next.connect()
+      if (mode === 'create') {
+        next.createRoom(displayName)
+      } else {
+        next.joinRoom(roomCodeInput.trim().toUpperCase(), displayName)
+      }
     } catch (err) {
       console.warn('[App] connect failed:', err)
       setError(err instanceof Error ? err.message : String(err))
@@ -866,7 +892,7 @@ export default function App() {
               className="connect-form"
               onSubmit={(e) => {
                 e.preventDefault()
-                void handleConnect()
+                void handleConnect('create')
               }}
             >
               <label className="field">
@@ -890,20 +916,48 @@ export default function App() {
                   autoComplete="off"
                 />
               </label>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                data-testid="connect-btn"
-                disabled={connState === 'connecting'}
-              >
-                {connState === 'connecting' ? 'Connecting…' : 'Connect'}
-              </button>
+              <label className="field">
+                <span className="field-label">Room Code</span>
+                <input
+                  className="field-input field-input-code"
+                  data-testid="room-code-input"
+                  value={roomCodeInput}
+                  onChange={(e) => setRoomCodeInput(e.target.value.toUpperCase())}
+                  placeholder="加入已有房间时填写"
+                  spellCheck={false}
+                  autoComplete="off"
+                  maxLength={6}
+                />
+              </label>
+              <div className="connect-actions">
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  data-testid="create-btn"
+                  disabled={connState === 'connecting'}
+                >
+                  {connState === 'connecting' ? 'Connecting…' : '创建房间'}
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  data-testid="join-btn"
+                  disabled={connState === 'connecting' || roomCodeInput.trim() === ''}
+                  onClick={() => void handleConnect('join')}
+                >
+                  加入房间
+                </button>
+              </div>
+              <p className="field-hint">
+                创建房间后会得到 6 位房间码;把码告诉朋友,他们填码点「加入房间」。
+              </p>
             </form>
           </section>
 
           <StatusPanel
             connState={connState}
             serverUrl={serverUrl}
+            roomCode={roomCode}
             myName={displayName}
             myId={myId}
             peers={peers}

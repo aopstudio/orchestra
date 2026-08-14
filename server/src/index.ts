@@ -1,12 +1,16 @@
 import { randomUUID } from 'node:crypto'
 import { WebSocketServer, type RawData } from 'ws'
 import type { ClientMsg, ServerMsg } from '@orchestra/shared'
-import { createRoom, type RoomMember } from './room'
+import { createRoomManager, type RoomEntry } from './roomManager'
+import type { RoomMember } from './room'
 
 const PORT = Number(process.env.PORT ?? 8080)
 
 // 服务器权威时钟:单调毫秒(协议约定基于 performance.now)
-const room = createRoom(120, 4, () => performance.now())
+const manager = createRoomManager(() => performance.now())
+
+/** 成员 id → 所在房间;未加入房间的成员不在表中 */
+const memberRooms = new Map<string, RoomEntry>()
 
 const wss = new WebSocketServer({ port: PORT })
 
@@ -34,16 +38,36 @@ wss.on('connection', (ws) => {
     const msg = parseClientMsg(raw)
     if (!msg) return
 
-    if (msg.type === 'join') {
+    if (msg.type === 'createRoom') {
       if (joined) return
       member.name = msg.name
-      room.join(member)
+      const entry = manager.createRoom(member)
+      memberRooms.set(member.id, entry)
       joined = true
       return
     }
 
-    // 未 join 前收到的 note/sync 一律忽略
+    if (msg.type === 'join') {
+      if (joined) return
+      member.name = msg.name
+      const entry = manager.joinRoom(msg.roomCode, member)
+      if (entry === null) {
+        member.send({
+          type: 'roomError',
+          message: `房间 ${msg.roomCode.trim().toUpperCase()} 不存在`,
+        })
+        return
+      }
+      memberRooms.set(member.id, entry)
+      joined = true
+      return
+    }
+
+    // 未加入任何房间前收到的 note/sync 等一律忽略
     if (!joined) return
+    const entry = memberRooms.get(member.id)
+    if (entry === undefined) return
+    const { room } = entry
 
     if (msg.type === 'note') {
       room.note(member.id, msg.note, msg.velocity)
@@ -59,15 +83,21 @@ wss.on('connection', (ws) => {
   })
 
   ws.on('close', () => {
-    if (joined) room.leave(member.id)
+    const entry = memberRooms.get(member.id)
+    if (entry !== undefined) {
+      entry.room.leave(member.id)
+      memberRooms.delete(member.id)
+    }
     console.log(`client disconnected: ${member.name} (${member.id})`)
   })
 
   console.log(`client connected: ${member.id}`)
 })
 
-// 每 500ms 向所有成员广播权威节拍
-setInterval(() => room.broadcastClock(), 500)
+// 每 500ms 向所有房间的成员广播权威节拍
+setInterval(() => {
+  manager.forEachRoom((entry) => entry.room.broadcastClock())
+}, 500)
 
 console.log(`orchestra server listening on ws://localhost:${PORT}`)
 

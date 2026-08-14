@@ -19,7 +19,13 @@ export interface Room {
   broadcastClock(): void
 }
 
-export function createRoom(bpm: number, bpi: number, now: () => number): Room {
+export function createRoom(
+  bpm: number,
+  bpi: number,
+  now: () => number,
+  roomCode: string,
+  onEmpty?: () => void,
+): Room {
   const beatClock = createBeatClock(bpm, bpi, now)
   const members = new Map<string, RoomMember>()
 
@@ -32,6 +38,7 @@ export function createRoom(bpm: number, bpi: number, now: () => number): Room {
         type: 'welcome',
         id: member.id,
         name: member.name,
+        roomCode,
         bpm: beatClock.bpm,
         bpi: beatClock.bpi,
       })
@@ -48,6 +55,10 @@ export function createRoom(bpm: number, bpi: number, now: () => number): Room {
       members.delete(id)
       for (const m of members.values()) {
         m.send({ type: 'peerLeft', id })
+      }
+      // 房间空掉后由管理器回收(如删除房间码映射)
+      if (members.size === 0) {
+        onEmpty?.()
       }
     },
 

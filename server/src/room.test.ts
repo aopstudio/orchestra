@@ -19,20 +19,20 @@ function makeMember(id: string, name: string): { member: RoomMember; sent: Serve
 
 describe('createRoom', () => {
   it('join assigns the member id, sends welcome, and notifies existing members with peerJoined', () => {
-    const room = createRoom(120, 4, () => 0)
+    const room = createRoom(120, 4, () => 0, 'TESTRO')
     const a = makeMember('a', 'Alice')
     const b = makeMember('b', 'Bob')
 
     room.join(a.member)
     room.join(b.member)
 
-    expect(a.sent[0]).toEqual({ type: 'welcome', id: 'a', name: 'Alice', bpm: 120, bpi: 4 })
-    expect(b.sent[0]).toEqual({ type: 'welcome', id: 'b', name: 'Bob', bpm: 120, bpi: 4 })
+    expect(a.sent[0]).toEqual({ type: 'welcome', id: 'a', name: 'Alice', roomCode: 'TESTRO', bpm: 120, bpi: 4 })
+    expect(b.sent[0]).toEqual({ type: 'welcome', id: 'b', name: 'Bob', roomCode: 'TESTRO', bpm: 120, bpi: 4 })
     expect(a.sent[1]).toEqual({ type: 'peerJoined', id: 'b', name: 'Bob' })
   })
 
   it('size() reflects the number of joined members', () => {
-    const room = createRoom(120, 4, () => 0)
+    const room = createRoom(120, 4, () => 0, 'TESTRO')
     expect(room.size()).toBe(0)
     room.join(makeMember('a', 'Alice').member)
     room.join(makeMember('b', 'Bob').member)
@@ -41,7 +41,7 @@ describe('createRoom', () => {
 
   it('note relays to all other members with serverTime from the injected clock, never back to the sender', () => {
     let t = 1000
-    const room = createRoom(120, 4, () => t)
+    const room = createRoom(120, 4, () => t, 'TESTRO')
     const a = makeMember('a', 'Alice')
     const b = makeMember('b', 'Bob')
     const c = makeMember('c', 'Carol')
@@ -63,7 +63,7 @@ describe('createRoom', () => {
 
   it('noteOff relays to all other members with serverTime, never back to the sender', () => {
     let t = 1000
-    const room = createRoom(120, 4, () => t)
+    const room = createRoom(120, 4, () => t, 'TESTRO')
     const a = makeMember('a', 'Alice')
     const b = makeMember('b', 'Bob')
     const c = makeMember('c', 'Carol')
@@ -85,7 +85,7 @@ describe('createRoom', () => {
 
   it('setTempo broadcasts the new bpm with serverTime to ALL members', () => {
     let t = 1000
-    const room = createRoom(120, 4, () => t)
+    const room = createRoom(120, 4, () => t, 'TESTRO')
     const a = makeMember('a', 'Alice')
     const b = makeMember('b', 'Bob')
     room.join(a.member)
@@ -103,7 +103,7 @@ describe('createRoom', () => {
 
   it('setTempo also affects the clock beat broadcast (faster tempo advances beats faster)', () => {
     let t = 0
-    const room = createRoom(120, 4, () => t)
+    const room = createRoom(120, 4, () => t, 'TESTRO')
     const a = makeMember('a', 'Alice')
     room.join(a.member)
     a.sent.length = 0
@@ -120,7 +120,7 @@ describe('createRoom', () => {
 
   it('setBpi broadcasts the new bpi with serverTime to ALL members', () => {
     let t = 1000
-    const room = createRoom(120, 4, () => t)
+    const room = createRoom(120, 4, () => t, 'TESTRO')
     const a = makeMember('a', 'Alice')
     const b = makeMember('b', 'Bob')
     room.join(a.member)
@@ -139,7 +139,7 @@ describe('createRoom', () => {
 
   it('setBpi immediately broadcasts a clock with the re-anchored beat (beat 1 of new meter)', () => {
     let t = 0
-    const room = createRoom(120, 4, () => t)
+    const room = createRoom(120, 4, () => t, 'TESTRO')
     const a = makeMember('a', 'Alice')
     room.join(a.member)
     a.sent.length = 0
@@ -155,7 +155,7 @@ describe('createRoom', () => {
 
   it('broadcastClock includes the current bpi', () => {
     let t = 0
-    const room = createRoom(120, 4, () => t)
+    const room = createRoom(120, 4, () => t, 'TESTRO')
     const a = makeMember('a', 'Alice')
     room.join(a.member)
     a.sent.length = 0
@@ -172,7 +172,7 @@ describe('createRoom', () => {
 
   it('sync replies only to the requester, echoing t1 and stamping t2/t3 from the injected clock', () => {
     let t = 500
-    const room = createRoom(120, 4, () => t)
+    const room = createRoom(120, 4, () => t, 'TESTRO')
     const a = makeMember('a', 'Alice')
     const b = makeMember('b', 'Bob')
     room.join(a.member)
@@ -192,7 +192,7 @@ describe('createRoom', () => {
 
   it('broadcastClock sends clock to all members with beat derived from beatClock and current serverTime', () => {
     let t = 0
-    const room = createRoom(120, 4, () => t)
+    const room = createRoom(120, 4, () => t, 'TESTRO')
     const a = makeMember('a', 'Alice')
     const b = makeMember('b', 'Bob')
     room.join(a.member)
@@ -209,7 +209,7 @@ describe('createRoom', () => {
   })
 
   it('leave removes the member and notifies the remaining members with peerLeft', () => {
-    const room = createRoom(120, 4, () => 0)
+    const room = createRoom(120, 4, () => 0, 'TESTRO')
     const a = makeMember('a', 'Alice')
     const b = makeMember('b', 'Bob')
     const c = makeMember('c', 'Carol')
