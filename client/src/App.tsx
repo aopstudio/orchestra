@@ -28,6 +28,7 @@ import { connectMidi, type MidiConnection } from './input/midi'
 import JamPad, { PAD_HIGH_NOTE, PAD_LOW_NOTE } from './ui/JamPad'
 import GuideTicker from './ui/GuideTicker'
 import DrumPad from './ui/DrumPad'
+import ScoreView from './ui/ScoreView'
 import StatusPanel, { type ConnState, type Peer } from './ui/StatusPanel'
 import MixerPanel from './ui/MixerPanel'
 import SongPicker from './ui/SongPicker'
@@ -150,6 +151,10 @@ export default function App() {
     const saved = localStorage.getItem('orch.guideMode')
     return saved === 'highlight' ? 'highlight' : 'ticker'
   })
+  /** 谱面(OSMD 总谱/分谱)是否显示。 */
+  const [showScore, setShowScore] = useState(() => localStorage.getItem('orch.showScore') === '1')
+  /** 歌曲当前位置(拍,相对歌曲起点)——驱动谱面跟随高亮。 */
+  const [songBeatState, setSongBeatState] = useState<number | null>(null)
   /** Guide window: MIDI notes to press now / arriving soon, from the guide engine. */
   const [guideCurrent, setGuideCurrent] = useState<ReadonlySet<number>>(() => new Set())
   const [guideUpcoming, setGuideUpcoming] = useState<ReadonlySet<number>>(() => new Set())
@@ -473,6 +478,7 @@ export default function App() {
           const beatsLeft = countdownUntil - msg.beat
           if (beatsLeft > 0) {
             setCountdownBeatsLeft(Math.ceil(beatsLeft))
+            setSongBeatState(null)
             return
           }
           countdownUntilRef.current = null
@@ -482,6 +488,7 @@ export default function App() {
         const startBeat = songStartBeatRef.current
         if (part !== null && startBeat !== null) {
           const songBeat = msg.beat - startBeat
+          setSongBeatState(songBeat)
           const win = advanceGuide(part.notes, songBeat, { lookaheadBeats: 4 })
           // The engine returns SongNote[]; the pad highlights by MIDI note.
           setGuideCurrent(new Set(win.current.map((n) => n.note)))
@@ -788,6 +795,14 @@ export default function App() {
     localStorage.setItem('orch.guideMode', mode)
   }
 
+  /** 切换谱面显示(持久化)。 */
+  const handleToggleScore = (): void => {
+    setShowScore((prev) => {
+      localStorage.setItem('orch.showScore', prev ? '0' : '1')
+      return !prev
+    })
+  }
+
   /** Persist per-song BPM overrides. */
   useEffect(() => {
     localStorage.setItem('orch.songBpm', JSON.stringify(songBpmOverrides))
@@ -823,6 +838,7 @@ export default function App() {
     setGuideCurrent(new Set())
     setGuideUpcoming(new Set())
     setGuideProgress(0)
+    setSongBeatState(null)
     setJudgeStats({ hits: 0, misses: 0, mistakes: 0, score: 0 })
     setJudgeBadge(null)
   }
@@ -877,6 +893,7 @@ export default function App() {
     setGuideCurrent(new Set())
     setGuideUpcoming(new Set())
     setGuideProgress(0)
+    setSongBeatState(null)
     judgeRef.current = new Judge(selectedPartRef.current.notes, {
       enabled: judgeEnabledRef.current,
     })
@@ -1149,6 +1166,8 @@ export default function App() {
             onSongBpmChange={handleSongBpmChange}
             guideMode={guideMode}
             onGuideModeChange={handleGuideModeChange}
+            showScore={showScore}
+            onToggleScore={handleToggleScore}
           />
 
           <section className="panel">
@@ -1258,6 +1277,14 @@ export default function App() {
               onHit={(note) => noteOn(note, true)}
             />
           ) : null}
+          {showScore && selectedSong !== null && (
+            <ScoreView
+              song={selectedSong}
+              part={selectedPart}
+              songBeat={songBeatState}
+              enabled={connState === 'connected'}
+            />
+          )}
         </div>
       </main>
 

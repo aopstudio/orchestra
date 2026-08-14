@@ -43,6 +43,9 @@ export interface SongPickerProps {
   /** 引导模式: 下落音符(滚动条)或虚拟乐器高亮(琴键/鼓垫)。 */
   guideMode?: 'ticker' | 'highlight'
   onGuideModeChange?: (mode: 'ticker' | 'highlight') => void
+  /** 谱面(OSMD 总谱/分谱)开关。 */
+  showScore?: boolean
+  onToggleScore?: () => void
 }
 
 /** Compact meta line under each song title. */
@@ -68,6 +71,8 @@ export default function SongPicker({
   onSongBpmChange,
   guideMode = 'ticker',
   onGuideModeChange,
+  showScore = false,
+  onToggleScore,
 }: SongPickerProps) {
   const selectedSong = songs.find((s) => s.id === selectedSongId) ?? null
   const armed = selectedPartId !== null
@@ -191,6 +196,15 @@ export default function SongPicker({
             onClick={() => onGuideModeChange?.('highlight')}
           >
             乐器高亮
+          </button>
+          <button
+            type="button"
+            className={`tsig-pill${showScore ? ' tsig-pill-active' : ''}`}
+            data-testid="score-toggle"
+            aria-pressed={showScore}
+            onClick={() => onToggleScore?.()}
+          >
+            谱面
           </button>
         </div>
       </div>

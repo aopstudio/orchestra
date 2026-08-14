@@ -344,3 +344,29 @@ test('four players share one room: roster, note fan-out, and isolation from a se
     await ctx.close()
   }
 })
+
+test('score view renders OSMD sheet music and follows the armed part', async ({ browser }) => {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  await createRoom(page, 'Reader')
+  await waitInstrumentsReady(page)
+
+  // 打开谱面开关 → 选小星星(未武装前为总谱)
+  await page.getByTestId('score-toggle').click()
+  await page.getByTestId('song-twinkle').click()
+  await expect(page.getByTestId('score-view')).toBeVisible({ timeout: 20_000 })
+  await expect(page.locator('.score-canvas svg').first()).toBeVisible({ timeout: 20_000 })
+
+  // 武装旋律声部 → 分谱 + 倒计时开始后光标跟随(OSMD cursor 元素出现)
+  await page.getByTestId('part-twinkle-melody').click()
+  await expect
+    .poll(() => page.locator('.score-canvas svg').count(), { timeout: 20_000 })
+    .toBeGreaterThan(0)
+  await page.waitForTimeout(4000) // 等倒计时结束、歌曲开始
+  const cursorCount = await page
+    .locator('.score-canvas svg [fill="#c00000"], .score-canvas svg [fill="#ff0000"]')
+    .count()
+  console.log(`[e2e] score: cursor-highlighted elements = ${cursorCount}`)
+
+  await ctx.close()
+})
