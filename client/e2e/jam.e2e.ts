@@ -27,10 +27,13 @@ const WS_URL = 'ws://localhost:8081'
  * oscillator fallback is ready in well under a second.
  */
 const SMPLR_CDN = /^https?:\/\/(gleitz\.github\.io|goldst\.dev|smpldsnds\.github\.io)/
+/** 自托管音源也在 E2E 中拦截,保持测试走快速合成降级。 */
+const SELF_SOUNDFONTS = /\/soundfonts\//
 
-/** Abort smplr CDN fetches so the fallback synth initialises immediately. */
+/** Abort smplr CDN + self-hosted soundfont fetches so the fallback synth initialises immediately. */
 async function blockCdn(page: Page): Promise<void> {
   await page.route(SMPLR_CDN, (route) => route.abort())
+  await page.route(SELF_SOUNDFONTS, (route) => route.abort())
 }
 
 /** Open the app, fill server + name, and click the given action button. */

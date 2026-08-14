@@ -14,3 +14,4 @@ test-results/
 .env.*
 !.env.example
 release/
+client/public/soundfonts/

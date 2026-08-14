@@ -122,14 +122,16 @@ function awaitReady(ready: Promise<void>, label: string): Promise<boolean> {
 }
 
 /** 通用 Soundfont 加载: 成功返回实例,失败/超时返回 null(不抛出)。
- *  `destination` 把该乐器的输出路由到混音总线,实现声部音量控制。 */
+ *  `destination` 把该乐器的输出路由到混音总线,实现声部音量控制。
+ *  `instrumentUrl` 指向自托管音源(同源加载,音色一致且不依赖外部 CDN)。 */
 async function loadSoundfont(
   ctx: AudioContext,
   instrument: string,
   destination: AudioNode,
+  instrumentUrl: string,
 ): Promise<ReturnType<typeof Soundfont> | null> {
   try {
-    const inst = Soundfont(ctx, { instrument, destination })
+    const inst = Soundfont(ctx, { instrument, instrumentUrl, destination })
     if (await awaitReady(inst.ready, `Soundfont ${instrument}`)) {
       return inst
     }
@@ -162,12 +164,20 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
   }
 
   // 按需并行加载五个采样乐器;任一失败独立降级,不影响其他。
+  // 音源自托管: 与页面同源,所有人听到一致的真实采样(见 scripts/fetch-soundfonts.sh)
+  const sfUrl = (name: string): string => `/soundfonts/${name}-ogg.js`
   const [piano, bass, drums, trumpet, violin] = await Promise.all([
-    loadSoundfont(ctx, 'acoustic_grand_piano', buses.piano),
-    loadSoundfont(ctx, 'electric_bass_finger', buses.bass),
+    loadSoundfont(ctx, 'acoustic_grand_piano', buses.piano, sfUrl('acoustic_grand_piano')),
+    loadSoundfont(ctx, 'electric_bass_finger', buses.bass, sfUrl('electric_bass_finger')),
     (async () => {
       try {
-        const inst = DrumMachine(ctx, { instrument: 'TR-808', destination: buses.drums })
+        // 鼓机同样自托管(dm.json + 全部样本,见 fetch-soundfonts.sh);
+        // smplr 会从 url 重写 baseUrl,样本解析为 /soundfonts/tr808/<group>/<name>.ogg
+        const inst = DrumMachine(ctx, {
+          instrument: 'TR-808',
+          destination: buses.drums,
+          url: '/soundfonts/tr808/dm.json',
+        })
         if (await awaitReady(inst.ready, 'DrumMachine TR-808')) {
           return inst
         }
@@ -176,8 +186,8 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
       }
       return null
     })(),
-    loadSoundfont(ctx, 'muted_trumpet', buses.trumpet),
-    loadSoundfont(ctx, 'violin', buses.violin),
+    loadSoundfont(ctx, 'muted_trumpet', buses.trumpet, sfUrl('muted_trumpet')),
+    loadSoundfont(ctx, 'violin', buses.violin, sfUrl('violin')),
   ])
 
   type SoundfontInstance = ReturnType<typeof Soundfont>
