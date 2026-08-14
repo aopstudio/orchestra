@@ -80,6 +80,8 @@ function makeHandlers(): { handlers: WsHandlers; welcomes: unknown[] } {
     onSyncAck: () => {},
     onSongStart: () => {},
     onJamStart: () => {},
+    onEnsembleState: () => {},
+    onPartError: () => {},
   }
   return { handlers, welcomes }
 }

@@ -229,9 +229,16 @@ test('song guide: arm the rock-groove drums → countdown → guide highlight �
   // 乐器高亮模式(鼓垫)
   await page.getByTestId('guide-mode-highlight').click()
 
-  // 选摇滚曲目并武装鼓声部 → 倒计时出现
+  // 选摇滚曲目并认领鼓声部 → 等待认领采纳
   await page.getByTestId('song-rock-groove').click()
   await page.getByTestId('part-rock-groove-drums').click()
+  await expect(page.getByTestId('part-rock-groove-drums')).toContainText('我', {
+    timeout: 10_000,
+  })
+  // 认领后不立即倒计时: 准备 → 开始倒计时
+  await expect(page.getByTestId('songbook-countdown')).toHaveCount(0)
+  await page.getByTestId('ready-btn').click()
+  await page.getByTestId('sync-start-btn').click()
   await expect(page.getByTestId('songbook-countdown')).toBeVisible()
 
   // 倒计时结束、歌曲开始 → 鼓垫出现且出现引导高亮
@@ -415,12 +422,16 @@ test('song studio: record a few notes, save as a song, and arm it from the libra
   await expect(page.getByTestId('song-custom-')).toHaveCount(0) // id 随机,按标题断言
   await expect(page.locator('.song-row', { hasText: '我的测试曲' })).toBeVisible()
 
-  // 可以选中并武装(进入引导管线)
+  // 可以选中并认领(进入引导管线)
   await page.locator('.song-row', { hasText: '我的测试曲' }).click()
   await expect(page.getByTestId('part-')).toHaveCount(0)
   const partPills = page.locator('.part-pill')
   expect(await partPills.count()).toBeGreaterThan(0)
   await partPills.first().click()
+  // 认领采纳后: 准备 → 开始倒计时
+  await expect(page.getByTestId('ready-btn')).toBeEnabled({ timeout: 10_000 })
+  await page.getByTestId('ready-btn').click()
+  await page.getByTestId('sync-start-btn').click()
   await expect(page.getByTestId('songbook-countdown')).toBeVisible()
 
   await ctx.close()
@@ -563,10 +574,10 @@ test('cross-city simulation: 60ms one-way relay still syncs the clock and relays
   await ctxB.close()
 })
 
-test('four players jam rock-groove with sync-start: guides start together in one room', async ({
+test('three players claim distinct parts, ready up, and start rock-groove together (exclusive parts)', async ({
   browser,
 }) => {
-  // 4 人进同一房间,每人武装不同声部(鼓/贝斯/键盘/键盘)
+  // 3 人进同一房间,每人认领不同声部(鼓/贝斯/键盘);第 4 人认领被占声部应被拒
   const ctxs = []
   const pages: Page[] = []
   for (let i = 0; i < 4; i += 1) {
@@ -583,19 +594,38 @@ test('four players jam rock-groove with sync-start: guides start together in one
     await p!.getByTestId('guide-mode-highlight').click()
     await p!.getByTestId('song-rock-groove').click()
   }
-  const parts = ['drums', 'bass', 'keys', 'keys']
-  for (let i = 0; i < 4; i += 1) {
+  const parts = ['drums', 'bass', 'keys']
+  for (let i = 0; i < 3; i += 1) {
     await pages[i]!.getByTestId(`part-rock-groove-${parts[i]}`).click()
   }
+  // 等待三人的认领都被服务器确认
+  for (let i = 0; i < 3; i += 1) {
+    await expect(pages[i]!.getByTestId(`part-rock-groove-${parts[i]}`)).toContainText('我', {
+      timeout: 10_000,
+    })
+  }
 
-  // P1 发起同步开始 → 所有人都进入倒计时
+  // 声部互斥: 已被占的 keys 在未认领它的玩家(P1/P2)界面上禁用并显示占用者
+  for (const p of pages.slice(0, 2)) {
+    await expect(p!.getByTestId('part-rock-groove-keys')).toBeDisabled({ timeout: 10_000 })
+    await expect(p!.getByTestId('part-rock-groove-keys')).toContainText('已选', { timeout: 10_000 })
+  }
+  console.log('[e2e] ensemble: part exclusivity enforced (taken part disabled for others)')
+
+  // 未全部准备时「开始倒计时」不可用
+  await expect(pages[0]!.getByTestId('sync-start-btn')).toBeDisabled()
+
+  // 三人准备就绪 → 开始倒计时
+  for (let i = 0; i < 3; i += 1) {
+    await pages[i]!.getByTestId('ready-btn').click()
+  }
   await pages[0]!.getByTestId('sync-start-btn').click()
-  for (const p of pages) {
+  for (const p of pages.slice(0, 3)) {
     await expect(p!.getByTestId('songbook-countdown')).toBeVisible({ timeout: 10_000 })
   }
 
   // 倒计时结束 → 每个页面都出现引导高亮(鼓手看鼓垫,其他看琴键)
-  for (let i = 0; i < 4; i += 1) {
+  for (let i = 0; i < 3; i += 1) {
     const p = pages[i]!
     const guideSel =
       parts[i] === 'drums'

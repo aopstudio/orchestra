@@ -193,6 +193,17 @@ wss.on('connection', (rawWs) => {
       room.startSong()
     } else if (msg.type === 'startJam') {
       room.startJam(msg.bars, msg.pickup)
+    } else if (msg.type === 'selectPart') {
+      const result = room.selectPart(member.id, msg.songId, msg.partId)
+      if (result !== 'ok') {
+        member.send({
+          type: 'partError',
+          message:
+            result === 'taken' ? '该声部已被其他人选中,请选择别的声部' : '歌曲不一致或无法选择',
+        })
+      }
+    } else if (msg.type === 'setReady') {
+      room.setReady(member.id, msg.ready)
     } else if (msg.type === 'sync') {
       room.sync(member.id, msg.t1)
     }

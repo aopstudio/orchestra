@@ -48,6 +48,19 @@ export interface SongPickerProps {
   onToggleScore?: () => void
   /** 请求房间同步开始: 全房间已武装的玩家在同一小节边界起奏。 */
   onSyncStart?: () => void
+  /** 房间合奏编排状态(声部认领/准备)。 */
+  ensemble?: {
+    songId: string
+    bpi: number
+    parts: Array<{ partId: string; playerId: string; playerName: string; ready: boolean }>
+  } | null
+  /** 我的玩家 id(判断认领归属)。 */
+  myId?: string | null
+  /** 我是否已准备。 */
+  myReady?: boolean
+  onToggleReady?: () => void
+  /** 编排开始是否就绪(有人认领且全部准备)。 */
+  canStart?: boolean
 }
 
 /** Compact meta line under each song title. */
@@ -76,12 +89,22 @@ export default function SongPicker({
   showScore = false,
   onToggleScore,
   onSyncStart,
+  ensemble = null,
+  myId = null,
+  myReady = false,
+  onToggleReady,
+  canStart = false,
 }: SongPickerProps) {
   const selectedSong = songs.find((s) => s.id === selectedSongId) ?? null
   const armed = selectedPartId !== null
   const progressPct = Math.max(0, Math.min(100, Math.round(progress * 100)))
   const selectedBpm =
     selectedSong !== null ? (songBpmOverrides[selectedSong.id] ?? selectedSong.bpm) : null
+  // 编排状态: 房间歌曲的认领表(partId → 认领信息)
+  const roomEnsemble = ensemble !== null && ensemble.songId === selectedSong?.id ? ensemble : null
+  const claimOf = (partId: string) =>
+    roomEnsemble?.parts.find((p) => p.partId === partId) ?? null
+  const myHasClaim = roomEnsemble?.parts.some((p) => p.playerId === myId) ?? false
 
   return (
     <section className="panel songbook-panel">
@@ -126,21 +149,40 @@ export default function SongPicker({
             aria-label={`Parts of ${selectedSong.title}`}
           >
             {selectedSong.parts.map((part) => {
+              const claim = claimOf(part.id)
+              const mine = claim !== null && claim.playerId === myId
+              const taken = claim !== null && !mine
               const active = part.id === selectedPartId
               return (
                 <button
                   key={part.id}
                   type="button"
                   className={
-                    active ? 'tsig-pill tsig-pill-active part-pill' : 'tsig-pill part-pill'
+                    (active ? 'tsig-pill tsig-pill-active ' : 'tsig-pill ') +
+                    'part-pill' +
+                    (taken ? ' part-pill-taken' : '') +
+                    (mine ? ' part-pill-mine' : '')
                   }
                   data-testid={`part-${selectedSong.id}-${part.id}`}
-                  disabled={!enabled}
+                  disabled={!enabled || taken}
                   aria-pressed={active}
                   onClick={() => onSelectPart(part.id)}
+                  title={
+                    taken
+                      ? `已被 ${claim?.playerName ?? ''} 选中`
+                      : mine
+                        ? '我认领的声部'
+                        : '点击认领该声部'
+                  }
                 >
                   {part.name}
-                  <em>{part.notes.length} n</em>
+                  <em>
+                    {taken
+                      ? `${claim?.playerName} 已选${claim?.ready ? ' ✓' : ''}`
+                      : mine
+                        ? `${claim?.ready ? '已准备 ✓' : '我 · 待准备'}`
+                        : `${part.notes.length} n`}
+                  </em>
                 </button>
               )
             })}
@@ -240,13 +282,30 @@ export default function SongPicker({
           )}
           <button
             type="button"
+            className={`ready-btn${myReady ? ' ready-btn-on' : ''}`}
+            data-testid="ready-btn"
+            disabled={!enabled || !myHasClaim}
+            aria-pressed={myReady}
+            onClick={() => onToggleReady?.()}
+          >
+            <span className="ready-dot" />
+            {myReady ? '我已准备 ✓' : myHasClaim ? '准备就绪' : '先选声部'}
+          </button>
+          <button
+            type="button"
             className="sync-start-btn"
             data-testid="sync-start-btn"
-            disabled={!enabled}
+            disabled={!enabled || !canStart}
             onClick={() => onSyncStart?.()}
+            title={canStart ? undefined : '需要所有认领声部的玩家都已准备'}
           >
-            ▶ 同步开始
+            ▶ 开始倒计时
           </button>
+          {!canStart && myHasClaim && !myReady && (
+            <span className="songbook-hint" data-testid="sync-start-hint">
+              点击「准备就绪」后即可开始
+            </span>
+          )}
           <button
             type="button"
             className="restart-btn"
@@ -259,9 +318,9 @@ export default function SongPicker({
         </div>
       )}
 
-      <p className="songbook-note">
-        Selection is local for now — the shared server beat keeps guides aligned. Room song sync
-        ships later.
+      <p className="songbook-note" data-testid="ensemble-note">
+        多人合奏: 每人认领一个声部(同一声部互斥),全部「准备就绪」后点「开始倒计时」,
+        全房间同步起奏,各人界面显示自己的声部引导。
       </p>
     </section>
   )

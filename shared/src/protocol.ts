@@ -27,6 +27,10 @@ export type ClientMsg =
   | { type: 'setBpi'; bpi: number }
   | { type: 'startSong' }
   | { type: 'startJam'; bars: number; pickup: boolean }
+  /** 认领某首歌的某个声部(房间级编排,同一声部只能一人选)。 */
+  | { type: 'selectPart'; songId: string; partId: string }
+  /** 准备/取消准备(就绪后由发起人统一开始倒计时)。 */
+  | { type: 'setReady'; ready: boolean }
   | { type: 'sync'; t1: number }
 
 /** 服务器 → 客户端 */
@@ -65,6 +69,19 @@ export type ServerMsg =
       bpi: number
       pickup: boolean
     }
+  | {
+      /** 房间合奏编排状态(声部认领/准备)。广播给全房间。 */
+      type: 'ensembleState'
+      songId: string
+      bpi: number
+      parts: Array<{
+        partId: string
+        playerId: string
+        playerName: string
+        ready: boolean
+      }>
+    }
+  | { type: 'partError'; message: string }
 
 /** 服务器房间配置 */
 export interface RoomConfig {

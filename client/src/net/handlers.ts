@@ -13,8 +13,8 @@ import type { Instruments } from '../audio/instruments'
 import type { LookaheadScheduler } from '../audio/scheduler'
 import type { Metronome } from '../audio/metronome'
 import type { BeatGrid } from '../sync/beatGrid'
-import type { Judge } from '../guide/judge'
-import type { SongPart } from '../songs/songs'
+import { Judge } from '../guide/judge'
+import type { Song, SongPart } from '../songs/songs'
 import type { Peer, ConnState } from '../ui/StatusPanel'
 import { advanceGuide } from '../guide/guideEngine'
 import { PAD_HIGH_NOTE, PAD_LOW_NOTE } from '../ui/JamPad'
@@ -61,10 +61,25 @@ export interface HandlerDeps {
   setGuideUpcoming: Dispatch<SetStateAction<ReadonlySet<number>>>
   setGuideProgress: Dispatch<SetStateAction<number>>
   setJudgeStats: Dispatch<SetStateAction<{ hits: number; misses: number; mistakes: number; score: number }>>
+  setJudgeBadge: Dispatch<SetStateAction<{ kind: 'hit' | 'mistake'; note: number; id: number } | null>>
   setRemoteNotes: Dispatch<SetStateAction<ReadonlySet<number>>>
   setJamCountdown: Dispatch<SetStateAction<{ untilBeat: number; bpi: number; pickup: boolean } | null>>
   setJamBeatsLeft: Dispatch<SetStateAction<number | null>>
   setJamActive: Dispatch<SetStateAction<boolean>>
+  /** 我的玩家 id(认领归属判断)。 */
+  myIdRef: MutableRefObject<string | null>
+  /** 最新曲库(内置 + 自定义,认领采纳时查找歌曲)。 */
+  songsRef: MutableRefObject<Song[]>
+  setSelectedSong: Dispatch<SetStateAction<Song | null>>
+  setSelectedPart: Dispatch<SetStateAction<SongPart | null>>
+  /** 房间合奏编排状态(声部认领/准备)。 */
+  setEnsembleState: Dispatch<
+    SetStateAction<{
+      songId: string
+      bpi: number
+      parts: Array<{ partId: string; playerId: string; playerName: string; ready: boolean }>
+    } | null>
+  >
 }
 
 /**
@@ -112,16 +127,23 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
     setGuideUpcoming,
     setGuideProgress,
     setJudgeStats,
+    setJudgeBadge,
     setRemoteNotes,
     jamUntilRef,
     setJamCountdown,
     setJamBeatsLeft,
     setJamActive,
+    myIdRef,
+    songsRef,
+    setSelectedSong,
+    setSelectedPart,
+    setEnsembleState,
   } = deps
 
   return {
     onWelcome: (msg) => {
       setMyId(msg.id)
+      myIdRef.current = msg.id
       setRoomCode(msg.roomCode)
       setBpm(msg.bpm)
       setBpi(msg.bpi)
@@ -139,6 +161,7 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
       setJamCountdown(null)
       setJamBeatsLeft(null)
       setJamActive(false)
+      setEnsembleState(null)
       void (async () => {
         try {
           await startAudioPipeline(msg.bpm)
@@ -348,6 +371,34 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
       setJamCountdown({ untilBeat: msg.startBeat, bpi: msg.bpi, pickup: msg.pickup })
       setJamBeatsLeft(null)
       setJamActive(false)
+    },
+
+    onPartError: (msg) => {
+      // 声部被占/歌曲不一致: 只提示,不断开连接,并回退本地乐观选中
+      console.warn('[App] part error:', msg.message)
+      setError(msg.message)
+      setSelectedPart(null)
+      selectedPartRef.current = null
+      judgeRef.current = null
+      setJudgeBadge(null)
+    },
+
+    onEnsembleState: (msg) => {
+      setEnsembleState({ songId: msg.songId, bpi: msg.bpi, parts: msg.parts })
+      // 采纳我认领的声部: 选中的声部成为我的演奏声部,界面引导跟随。
+      // 倒计时不在此启动 —— 只由房间「开始倒计时」按钮(songStart)统一触发。
+      const myClaim = msg.parts.find((p) => p.playerId === myIdRef.current)
+      if (myClaim === undefined) return
+      const song = songsRef.current.find((s) => s.id === msg.songId)
+      const part = song?.parts.find((p) => p.id === myClaim.partId) ?? null
+      if (song === undefined || part === null) return
+      setSelectedSong(song)
+      setSelectedPart(part)
+      selectedPartRef.current = part
+      // 创建该声部的判定器(引导/计分管线),倒计时由「开始」按钮统一触发
+      judgeRef.current = new Judge(part.notes, { enabled: judgeEnabledRef.current })
+      setJudgeStats(judgeRef.current.stats())
+      setJudgeBadge(null)
     },
 
     onSongStart: (msg) => {

@@ -197,6 +197,14 @@ export default function App() {
   const [jamActive, setJamActive] = useState(false)
   /** 预备小节数(1-4,发起方设置)。 */
   const [jamBars, setJamBars] = useState(2)
+  /** 房间合奏编排状态(声部认领/准备,服务器广播)。 */
+  const [ensembleState, setEnsembleState] = useState<{
+    songId: string
+    bpi: number
+    parts: Array<{ partId: string; playerId: string; playerName: string; ready: boolean }>
+  } | null>(null)
+  /** 我是否已准备(本地发起)。 */
+  const [myReady, setMyReady] = useState(false)
   /** 弱起(pickup)开关: false=小节开始(强拍), true=弱起(边界前一拍)。 */
   const [jamPickup, setJamPickup] = useState(false)
 
@@ -254,6 +262,10 @@ export default function App() {
   const localVoicesRef = useRef<Map<string, () => void>>(new Map())
   /** 自由合奏起奏目标(handlers 的 onClock 读取)。 */
   const jamUntilRef = useRef<{ untilBeat: number; bpi: number; pickup: boolean } | null>(null)
+  /** 我的玩家 id(handlers 的认领采纳读取)。 */
+  const myIdRef = useRef<string | null>(null)
+  /** 最新曲库(内置 + 自定义),供 handlers 的认领采纳读取(经 ref 拿最新)。 */
+  const songsRef = useRef<Song[]>([])
   /** MIDI 连接实例(卸载时断开)。 */
   const midiConnectionRef = useRef<MidiConnection | null>(null)
   /** MIDI notes currently held (keyboard or mouse) — dedupes noteOn across inputs. */
@@ -454,10 +466,10 @@ export default function App() {
   // (they must not be recreated per render/reconnect). This is the documented
   // React lazy-ref-init pattern; react-hooks/refs flags it conservatively, and
   // the whole room pipeline depends on the single-instance behaviour.
+  // 一次性创建协议处理器(见 net/handlers.ts): 所有 handler 只经 refs/setters
+  // 访问管线,首次渲染后永不重建。react-hooks/refs 会保守标记该懒初始化读写。
   /* eslint-disable react-hooks/refs -- intentional once-created handler ref */
   if (handlersRef.current === null) {
-    // 一次性创建协议处理器(见 net/handlers.ts): 所有 handler 只经 refs/setters
-    // 访问管线,首次渲染后永不重建。
     handlersRef.current = createProtocolHandlers({
       wsRef,
       instrumentsRef,
@@ -499,9 +511,14 @@ export default function App() {
       setJamCountdown,
       setJamBeatsLeft,
       setJamActive,
+      setEnsembleState,
+      myIdRef,
+      songsRef,
+      setSelectedSong,
+      setSelectedPart,
+      setJudgeBadge,
     })
   }
-  /* eslint-enable react-hooks/refs */
 
   // --- user interactions -----------------------------------------------------
 
@@ -789,9 +806,22 @@ export default function App() {
     wsRef.current?.sendStartSong()
   }
 
+  /** 编排开始条件: 有人认领声部且所有认领者都已准备。 */
+  const canStartEnsemble =
+    ensembleState !== null &&
+    ensembleState.parts.length > 0 &&
+    ensembleState.parts.every((p) => p.ready)
+
   /** 发起自由合奏同步起奏(bars 预备小节后,可选弱起)。 */
   const handleJamStart = (): void => {
     wsRef.current?.sendStartJam(jamBars, jamPickup)
+  }
+
+  /** 切换我的准备状态(全部就绪后「开始」按钮才可用)。 */
+  const handleToggleReady = (): void => {
+    const next = !myReady
+    setMyReady(next)
+    wsRef.current?.sendSetReady(next)
   }
 
   /** 切换谱面显示(持久化)。 */
@@ -969,6 +999,11 @@ export default function App() {
     localStorage.setItem('orch.instrument', jamInstrument)
   }, [jamInstrument])
 
+  // 同步最新曲库到 songsRef(handlers 一次性创建,经 ref 拿最新)
+  useEffect(() => {
+    songsRef.current = [...SONGS, ...customSongs]
+  }, [customSongs])
+
   /** Pick a song: clears the armed part and applies the song's tempo room-wide. */
   const handleSelectSong = (songId: string): void => {
     // 内置 + 自定义曲库中查找
@@ -997,26 +1032,15 @@ export default function App() {
 
   /** Arm a part: start a COUNTDOWN, then the song begins (t=0 = armBeat + countdown). */
   const handleSelectPart = (partId: string): void => {
+    // 房间级声部认领: 通过服务器广播,同一声部互斥。
+    // 认领成功后由 onEnsembleState 采纳为我的声部;倒计时只由「开始」按钮统一触发。
     if (selectedSong === null) return
     const part = selectedSong.parts.find((p) => p.id === partId) ?? null
     if (part === null) return
+    // 本地先乐观显示(最终以服务器广播为准)
     setSelectedPart(part)
     selectedPartRef.current = part
-    // Swapping parts mid-song keeps the current position; the first arm (or a
-    // restart) starts a countdown ending on the NEXT BAR BOUNDARY so the song's
-    // first beat lands on the metronome accent. 若时钟网格尚不可知(latestBeat
-    // 为 null,首条时钟广播未到),挂起武装,onClock 到达后补启动倒计时——
-    // 否则用 0 拍当锚点会让倒计时立即过期、整首歌被跳过。
-    if (songStartBeatRef.current === null) {
-      if (latestBeatRef.current === null) {
-        pendingArmRef.current = true
-      } else {
-        startCountdown()
-      }
-    }
-    judgeRef.current = new Judge(part.notes, { enabled: judgeEnabledRef.current })
-    setJudgeStats(judgeRef.current.stats())
-    setJudgeBadge(null)
+    wsRef.current?.sendSelectPart(selectedSong.id, partId)
   }
 
   /** Restart the armed song: reset position + judgment, run the countdown again. */
@@ -1258,6 +1282,11 @@ export default function App() {
             showScore={showScore}
             onToggleScore={handleToggleScore}
             onSyncStart={handleSyncStart}
+            ensemble={ensembleState}
+            myId={myId}
+            myReady={myReady}
+            onToggleReady={handleToggleReady}
+            canStart={canStartEnsemble}
           />
 
           <SongStudio

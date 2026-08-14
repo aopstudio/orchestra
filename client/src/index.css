@@ -849,6 +849,49 @@ button {
   animation: rec-blink 1s ease-in-out infinite;
 }
 
+/* --- 房间合奏编排(声部认领/准备) --- */
+
+.part-pill-taken {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.part-pill-mine {
+  border-color: var(--cyan) !important;
+  box-shadow: 0 0 10px rgba(65, 227, 199, 0.35) !important;
+}
+
+.ready-btn {
+  color: var(--ink);
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 8px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ready-btn-on {
+  color: #04110e;
+  background: linear-gradient(180deg, var(--cyan-hi), var(--cyan));
+}
+
+.ready-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.songbook-hint {
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
 /* --- tutorial modal --- */
 
 .btn-tutorial {

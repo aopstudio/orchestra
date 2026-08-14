@@ -23,8 +23,18 @@ export interface Room {
    * pickup=false 起于小节边界(强拍);pickup=true 起于边界前一拍(弱起)。
    */
   startJam(bars: number, pickup: boolean): void
+  /** 认领声部;返回结果。被占/歌曲不一致时由调用方回 partError。 */
+  selectPart(memberId: string, songId: string, partId: string): 'ok' | 'taken' | 'wrongSong'
+  /** 设置/取消准备状态并广播编排状态。 */
+  setReady(memberId: string, ready: boolean): void
   sync(memberId: string, t1: number): void
   broadcastClock(): void
+}
+
+/** 房间合奏编排: 歌曲 + 声部认领与准备状态。 */
+export interface EnsembleState {
+  songId: string
+  claims: Array<{ partId: string; playerId: string; playerName: string; ready: boolean }>
 }
 
 export function createRoom(
@@ -36,6 +46,27 @@ export function createRoom(
 ): Room {
   const beatClock = createBeatClock(bpm, bpi, now)
   const members = new Map<string, RoomMember>()
+  /** 房间合奏编排(声部认领与准备);null = 尚未开始编排。 */
+  let ensemble: EnsembleState | null = null
+
+  /** 广播当前编排状态(全房间)。 */
+  function broadcastEnsemble(): void {
+    if (ensemble === null) return
+    const msg: ServerMsg = {
+      type: 'ensembleState',
+      songId: ensemble.songId,
+      bpi: beatClock.bpi,
+      parts: ensemble.claims.map((cl) => ({
+        partId: cl.partId,
+        playerId: cl.playerId,
+        playerName: cl.playerName,
+        ready: cl.ready,
+      })),
+    }
+    for (const m of members.values()) {
+      m.send(msg)
+    }
+  }
 
   return {
     size: () => members.size,
@@ -66,10 +97,55 @@ export function createRoom(
       for (const m of members.values()) {
         m.send({ type: 'peerLeft', id })
       }
+      // 释放该成员的声部认领并广播
+      if (ensemble !== null) {
+        const before = ensemble.claims.length
+        ensemble.claims = ensemble.claims.filter((cl) => cl.playerId !== id)
+        if (ensemble.claims.length !== before) {
+          if (ensemble.claims.length === 0) {
+            ensemble = null
+          } else {
+            broadcastEnsemble()
+          }
+        }
+      }
       // 房间空掉后由管理器回收(如删除房间码映射)
       if (members.size === 0) {
         onEmpty?.()
       }
+    },
+
+    selectPart(memberId, songId, partId) {
+      const member = members.get(memberId)
+      if (member === undefined) return 'wrongSong'
+      // 编排歌曲: 首次认领确定房间歌曲,后续必须一致
+      if (ensemble === null) {
+        ensemble = { songId, claims: [] }
+      } else if (ensemble.songId !== songId) {
+        return 'wrongSong'
+      }
+      // 声部已被他人认领 → 拒绝
+      if (ensemble.claims.some((cl) => cl.partId === partId && cl.playerId !== memberId)) {
+        return 'taken'
+      }
+      // 释放该成员之前认领的声部(换声部)
+      ensemble.claims = ensemble.claims.filter((cl) => cl.playerId !== memberId)
+      ensemble.claims.push({
+        partId,
+        playerId: memberId,
+        playerName: member.name,
+        ready: false,
+      })
+      broadcastEnsemble()
+      return 'ok'
+    },
+
+    setReady(memberId, ready) {
+      if (ensemble === null) return
+      const claim = ensemble.claims.find((cl) => cl.playerId === memberId)
+      if (claim === undefined) return
+      claim.ready = ready
+      broadcastEnsemble()
     },
 
     note(fromId, note, velocity, instrument) {

@@ -148,6 +148,37 @@ test('jamStart 广播形状(自由合奏起奏)', () => {
   }>()
 })
 
+test('selectPart 消息形状', () => {
+  expectTypeOf<Extract<ClientMsg, { type: 'selectPart' }>>().toEqualTypeOf<{
+    type: 'selectPart'
+    songId: string
+    partId: string
+  }>()
+})
+
+test('setReady 消息形状', () => {
+  expectTypeOf<Extract<ClientMsg, { type: 'setReady' }>>().toEqualTypeOf<{
+    type: 'setReady'
+    ready: boolean
+  }>()
+})
+
+test('ensembleState 广播形状', () => {
+  expectTypeOf<Extract<ServerMsg, { type: 'ensembleState' }>>().toEqualTypeOf<{
+    type: 'ensembleState'
+    songId: string
+    bpi: number
+    parts: Array<{ partId: string; playerId: string; playerName: string; ready: boolean }>
+  }>()
+})
+
+test('partError 消息形状', () => {
+  expectTypeOf<Extract<ServerMsg, { type: 'partError' }>>().toEqualTypeOf<{
+    type: 'partError'
+    message: string
+  }>()
+})
+
 test('welcome 消息形状(带房间码)', () => {
   expectTypeOf<Extract<ServerMsg, { type: 'welcome' }>>().toEqualTypeOf<{
     type: 'welcome'
