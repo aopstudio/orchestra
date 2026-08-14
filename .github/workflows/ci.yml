@@ -41,7 +41,7 @@ jobs:
         run: npm run build
 
       - name: E2E (room / guide / ensemble / cross-city relay / studio / share)
-        run: npm run e2e -w client
         working-directory: client
+        run: npx playwright test
         env:
           CI: 'true'
