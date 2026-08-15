@@ -86,6 +86,17 @@ export default function GuideTicker({
   const beatPx = isDrums ? DRUM_BEAT_PX : BEAT_PX
   const minCellPx = isDrums ? DRUM_MIN_CELL_PX : MIN_CELL_PX
   const beatPxRef = useRef(beatPx)
+  // 同拍音符分组(鼓声部同一拍常有 踩镲+底鼓/军鼓 两个鼓件):
+  // 渲染时上下错开、绝不重叠;旋律声部每拍单音,不受影响。
+  const beatGroups = useMemo(() => {
+    const g = new Map<number, SongNote[]>()
+    for (const n of notes) {
+      const arr = g.get(n.beat)
+      if (arr !== undefined) arr.push(n)
+      else g.set(n.beat, [n])
+    }
+    return g
+  }, [notes])
 
   // Keep the rAF-visible values fresh. Updated after every commit (never
   // during render — react-hooks/refs) so the per-frame loop always reads the
@@ -130,7 +141,8 @@ export default function GuideTicker({
           viewport.style.setProperty('--track-x', `${px}px`)
           viewport.style.setProperty('--track-w', `${trackW}px`)
           const notes = track.querySelectorAll<HTMLElement>('[data-testid="guide-note"]')
-          let currentLabel = ''
+          // 同一拍可能同时敲多个鼓件(踩镲+底鼓等): 播放头读数用「/」连接,全部显示
+          const currentLabels: string[] = []
           for (const el of notes) {
             const b = Number(el.dataset.beat)
             const end = b + Number(el.dataset.dur ?? 1)
@@ -138,13 +150,17 @@ export default function GuideTicker({
             el.classList.toggle('guide-note-past', safe >= end)
             el.classList.toggle('guide-note-current', cur)
             el.classList.toggle('guide-note-future', safe < b)
-            if (cur && currentLabel === '') {
-              currentLabel = `${el.dataset.label ?? ''} <em>${el.dataset.name ?? ''}</em>`
+            if (cur) {
+              const label = el.dataset.label ?? ''
+              if (label !== '' && !currentLabels.includes(label)) currentLabels.push(label)
             }
           }
           const nowEl = nowRef.current
           if (nowEl !== null) {
-            nowEl.innerHTML = currentLabel === '' ? '<em>—</em>' : currentLabel
+            nowEl.innerHTML =
+              currentLabels.length === 0
+                ? '<em>—</em>'
+                : currentLabels.map((l) => `<span>${l}</span>`).join(' / ')
           }
         } catch (err) {
           // A per-frame error must never kill the sweep; surface it for devs.
@@ -201,6 +217,11 @@ export default function GuideTicker({
               const end = endBeatOf(n)
               const label = labelOf(n.note)
               const fullName = isDrums ? (drumLabel(n.note) ?? noteName(n.note)) : noteName(n.note)
+              // 同拍多鼓件(踩镲+底鼓等)上下错开各占一行,不重叠:
+              // 2 个 → 上 50% / 下 50%;1 个 → 默认占满格子
+              const group = beatGroups.get(n.beat) ?? [n]
+              const gi = group.indexOf(n)
+              const stacked = group.length > 1
               return (
                 <div
                   key={`${n.beat}-${n.note}-${i}`}
@@ -215,6 +236,13 @@ export default function GuideTicker({
                   style={{
                     left: (prepBeats + n.beat) * beatPx,
                     width: Math.max((end - n.beat) * beatPx, minCellPx),
+                    ...(stacked
+                      ? {
+                          // 上下两行各占 ~46%,行间留 4% 缝,不贴边也不重叠
+                          top: `${2 + (gi / group.length) * 92}%`,
+                          height: `${92 / group.length}%`,
+                        }
+                      : {}),
                   }}
                 >
                   <span className="guide-note-label">{label}</span>
