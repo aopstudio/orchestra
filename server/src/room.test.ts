@@ -333,8 +333,15 @@ describe('房间合奏编排 (selectPart / setReady / 互斥)', () => {
     expect(room.selectPart('b', 'rock', 'drums')).toBe('taken')
     // B 选 bass → 成功
     expect(room.selectPart('b', 'rock', 'bass')).toBe('ok')
-    // 歌曲不一致 → wrongSong
-    expect(room.selectPart('b', 'other', 'bass')).toBe('wrongSong')
+    // 换歌 = 房间换歌重排: 不是报错,而是切到新歌并释放旧认领
+    expect(room.selectPart('b', 'other', 'bass')).toBe('ok')
+    const state2 = b.sent.at(-1) as
+      | { type: 'ensembleState'; songId: string; parts: Array<{ partId: string }> }
+      | undefined
+    expect(state2?.songId).toBe('other')
+    expect(state2?.parts.map((p) => p.partId)).toEqual(['bass'])
+    // Alice 的旧认领(drums)已随换歌释放
+    expect(state2?.parts.some((p) => p.partId === 'drums')).toBe(false)
   })
 
   it('换声部: 释放旧认领', () => {

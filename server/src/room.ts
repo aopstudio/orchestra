@@ -118,11 +118,10 @@ export function createRoom(
     selectPart(memberId, songId, partId) {
       const member = members.get(memberId)
       if (member === undefined) return 'wrongSong'
-      // 编排歌曲: 首次认领确定房间歌曲,后续必须一致
-      if (ensemble === null) {
+      // 编排歌曲: 首次认领确定房间歌曲;换歌 = 房间换歌重排——
+      // 释放全部旧认领并切到新歌(认领完成后统一广播,全房间可见),而不是报错
+      if (ensemble === null || ensemble.songId !== songId) {
         ensemble = { songId, claims: [] }
-      } else if (ensemble.songId !== songId) {
-        return 'wrongSong'
       }
       // 声部已被他人认领 → 拒绝
       if (ensemble.claims.some((cl) => cl.partId === partId && cl.playerId !== memberId)) {

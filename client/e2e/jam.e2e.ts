@@ -331,6 +331,32 @@ test('drum part in ticker mode: unified drum pads + drum-name ticker labels (not
   await ctx.close()
 })
 
+test('switch song then claim a part succeeds (room song re-sync, no 歌曲不一致 error)', async ({
+  browser,
+}) => {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  await createRoom(page, 'SongSwitch')
+  await waitInstrumentsReady(page)
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
+
+  // 先认领 rock-groove 鼓声部(房间编排锁定 rock)
+  await page.getByTestId('song-rock-groove').click()
+  await page.getByTestId('part-rock-groove-drums').click()
+  await expect(page.getByTestId('part-rock-groove-drums')).toContainText('我', {
+    timeout: 10_000,
+  })
+
+  // 切换曲目到 twinkle 再认领旋律 → 换歌重排,必须成功且不报错
+  await page.getByTestId('song-twinkle').click()
+  await page.getByTestId('part-twinkle-melody').click()
+  await expect(page.getByTestId('part-twinkle-melody')).toContainText('我', { timeout: 10_000 })
+  await expect(page.getByTestId('error-box')).toHaveCount(0)
+  console.log('[e2e] song switch: re-claiming a part on a new song succeeds without error')
+
+  await ctx.close()
+})
+
 test('multi-instrument song: jingle-bells trumpet part arms, counts down, and guides on the keyboard', async ({
   browser,
 }) => {

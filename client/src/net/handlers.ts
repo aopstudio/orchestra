@@ -410,7 +410,17 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
       // 采纳我认领的声部: 选中的声部成为我的演奏声部,界面引导跟随。
       // 倒计时不在此启动 —— 只由房间「开始倒计时」按钮(songStart)统一触发。
       const myClaim = msg.parts.find((p) => p.playerId === myIdRef.current)
-      if (myClaim === undefined) return
+      if (myClaim === undefined) {
+        // 认领表里没有我: 若本地还残留着声部(换歌重排/被释放) → 清理回未认领状态,
+        // 否则旧引导会继续跑,与房间实际编排脱节。
+        if (selectedPartRef.current !== null) {
+          selectedPartRef.current = null
+          setSelectedPart(null)
+          judgeRef.current = null
+          setJudgeBadge(null)
+        }
+        return
+      }
       const song = songsRef.current.find((s) => s.id === msg.songId)
       const part = song?.parts.find((p) => p.id === myClaim.partId) ?? null
       if (song === undefined || part === null) return
