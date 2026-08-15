@@ -757,8 +757,24 @@ test('free-jam drums: keyboard maps to drum pads (a = kick 36), not pitch keys',
   await waitInstrumentsReady(pageB)
   await waitInstrumentsReady(pageA)
 
-  // 自由合奏(不武装声部)选鼓音色
+  // 自由合奏(不武装声部)选鼓音色 → 演奏区显示全部 GM 鼓垫(替代无意义的钢琴键)
   await pageB.getByTestId('instrument-drums').click()
+  await expect(pageB.getByTestId('drumpad')).toBeVisible({ timeout: 10_000 })
+  await expect(pageB.getByTestId('drum-36')).toContainText('KICK')
+  await expect(pageB.getByTestId('drum-38')).toContainText('SNARE')
+
+  // 点击鼓垫 = 一击敲击: snare(38)
+  await pageB.getByTestId('drum-38').click()
+  await pageA.waitForTimeout(1200)
+  const heardPad = await pageA.evaluate(() => ({
+    instrument: window.__orchLastInstrument,
+    note: window.__orchLastNote,
+  }))
+  expect(heardPad.instrument).toBe('drums')
+  expect(heardPad.note).toBe(38)
+  console.log(`[e2e] free-jam drums: pad click → snare (note ${heardPad.note}, instrument ${heardPad.instrument})`)
+
+  // 键盘映射仍然有效: 'a' = kick 36(不是钢琴音高 60)
   await pageB.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
   await pageB.keyboard.press('a')
   await pageA.waitForTimeout(1200)

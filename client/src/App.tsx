@@ -25,7 +25,7 @@ import { LookaheadScheduler } from './audio/scheduler'
 import { Metronome } from './audio/metronome'
 import { createInstruments, type Instruments } from './audio/instruments'
 import { playReplay } from './audio/replay'
-import { KeyState, drumNoteForKey, noteForKey } from './input/keyboard'
+import { KeyState, drumNoteForKey, DRUM_KEYMAP, noteForKey } from './input/keyboard'
 import { connectMidi, type MidiConnection } from './input/midi'
 import JamPad from './ui/JamPad'
 import GuideTicker from './ui/GuideTicker'
@@ -63,6 +63,15 @@ const CONNECT_TIMEOUT_MS = 8_000
  *  50ms 会让"按下到出声"明显可感知(≈80ms);10ms 只留一个渲染量子边界
  *  的安全垫,听感即时,且永远不会排到过去(playTone 内部 max(currentTime))。 */
 const LOCAL_LOOKAHEAD_SEC = 0.01
+
+/** 自由合奏选鼓音色时展示的全部 GM 鼓垫(DRUM_KEYMAP 顺序: kick/snare/hat/tom/crash…)。 */
+const FREE_JAM_DRUM_NOTES: SongNote[] = Object.values(DRUM_KEYMAP).map((note) => ({
+  note,
+  beat: 0,
+  duration: 0.1,
+}))
+/** 自由合奏没有引导窗口,传空集合即可。 */
+const EMPTY_GUIDE: ReadonlySet<number> = new Set()
 /** Minimum preparation beats before a song starts (the actual countdown may be
  * longer — it always ends on a bar boundary so beat 1 of the song is an accent). */
 const COUNTDOWN_BEATS = 4
@@ -1326,37 +1335,54 @@ export default function App() {
             jamBeatsLeft={jamBeatsLeft}
             jamActive={jamActive}
             countdownBeatsLeft={countdownBeatsLeft}
+            songBeat={songBeatState}
           />
-          <JamPad
-            downNotes={downNotes}
-            remoteNotes={remoteNotes}
-            guideCurrent={guideCurrent}
-            guideUpcoming={guideUpcoming}
-            enabled={connState === 'connected'}
-            onNoteDown={handleNoteDown}
-            onNoteUp={handleNoteUp}
-            soundTest={() => void handleSoundTest()}
-            soundTestBusy={soundTestBusy}
-          />
-          {guideMode === 'ticker' ? (
-            <GuideTicker
-              notes={selectedPart?.notes ?? []}
-              getSongBeat={getSongBeat}
-              prepBeats={prepBeats}
-              enabled={connState === 'connected'}
-            />
-          ) : selectedPart?.instrument === 'drums' ? (
-            // 乐器高亮模式 + 鼓声部: 琴键(48+)之外的 GM 鼓件在 DrumPad 上高亮
+          {selectedPart === null && jamInstrument === 'drums' ? (
+            // 自由合奏 + 鼓音色: 键盘只映射鼓件,钢琴键在这里没有意义——
+            // 直接显示全部 GM 鼓垫(带键位提示),新手一眼看到该按哪
             <DrumPad
-              notes={selectedPart.notes}
-              guideCurrent={guideCurrent}
-              guideUpcoming={guideUpcoming}
+              notes={FREE_JAM_DRUM_NOTES}
+              guideCurrent={EMPTY_GUIDE}
+              guideUpcoming={EMPTY_GUIDE}
               downNotes={downNotes}
               remoteNotes={remoteNotes}
               enabled={connState === 'connected'}
               onHit={(note) => noteOn(note, true)}
             />
-          ) : null}
+          ) : (
+            <>
+              <JamPad
+                downNotes={downNotes}
+                remoteNotes={remoteNotes}
+                guideCurrent={guideCurrent}
+                guideUpcoming={guideUpcoming}
+                enabled={connState === 'connected'}
+                onNoteDown={handleNoteDown}
+                onNoteUp={handleNoteUp}
+                soundTest={() => void handleSoundTest()}
+                soundTestBusy={soundTestBusy}
+              />
+              {guideMode === 'ticker' ? (
+                <GuideTicker
+                  notes={selectedPart?.notes ?? []}
+                  getSongBeat={getSongBeat}
+                  prepBeats={prepBeats}
+                  enabled={connState === 'connected'}
+                />
+              ) : selectedPart?.instrument === 'drums' ? (
+                // 乐器高亮模式 + 鼓声部: 琴键(48+)之外的 GM 鼓件在 DrumPad 上高亮
+                <DrumPad
+                  notes={selectedPart.notes}
+                  guideCurrent={guideCurrent}
+                  guideUpcoming={guideUpcoming}
+                  downNotes={downNotes}
+                  remoteNotes={remoteNotes}
+                  enabled={connState === 'connected'}
+                  onHit={(note) => noteOn(note, true)}
+                />
+              ) : null}
+            </>
+          )}
           {showScore && selectedSong !== null && (
             <ScoreView
               song={selectedSong}

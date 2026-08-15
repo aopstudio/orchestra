@@ -6,7 +6,8 @@
  * 覆盖两种起奏:
  * - 自由合奏同步起奏(server 广播 jamStart 的起奏目标拍);
  * - 歌曲合奏(武装声部后的预备小节倒计时)。
- * 倒计时结束瞬间(仅自由合奏,有可靠的 jamActive 信号)闪现 GO!,随后消失。
+ * 倒计时归零瞬间闪现 GO!(自由合奏)或「开始!」(歌曲)——都靠可靠的
+ * 「已开始」信号触发: 自由合奏看 jamActive,歌曲等第一个歌曲拍出现。
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -21,34 +22,66 @@ export interface PerformanceCountdownProps {
   jamActive: boolean
   /** 歌曲预备小节剩余拍数(null = 无倒计时)。 */
   countdownBeatsLeft: number | null
+  /** 歌曲已推进到的拍位(null = 歌曲尚未开始)——用于判定歌曲真的开演了。 */
+  songBeat: number | null
 }
+
+type FlashKind = 'jam' | 'song'
 
 export default function PerformanceCountdown({
   jamCountdown,
   jamBeatsLeft,
   jamActive,
   countdownBeatsLeft,
+  songBeat,
 }: PerformanceCountdownProps) {
-  // GO! 闪现: 自由合奏倒计时归零瞬间亮一下,提醒「现在开始」。
-  const [goFlash, setGoFlash] = useState(false)
+  const [flash, setFlash] = useState<FlashKind | null>(null)
+  const flashTimerRef = useRef<number | null>(null)
   const wasCountingRef = useRef(false)
+  const pendingSongFlashRef = useRef(false)
 
+  const flashNow = (kind: FlashKind): void => {
+    if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current)
+    setFlash(kind)
+    flashTimerRef.current = window.setTimeout(() => {
+      setFlash(null)
+      flashTimerRef.current = null
+    }, 1500)
+  }
+
+  // 倒计时归零瞬间: 自由合奏立即闪 GO!;歌曲等第一个歌曲拍(约半拍后)闪「开始!」。
   useEffect(() => {
     const nowCounting = jamCountdown !== null || (countdownBeatsLeft ?? 0) > 0
     const wasCounting = wasCountingRef.current
     wasCountingRef.current = nowCounting
-    if (wasCounting && !nowCounting && jamActive) {
-      setGoFlash(true)
-      const t = setTimeout(() => setGoFlash(false), 1500)
-      return () => clearTimeout(t)
+    if (wasCounting && !nowCounting) {
+      if (jamActive) {
+        flashNow('jam')
+      } else {
+        pendingSongFlashRef.current = true
+      }
     }
   }, [jamCountdown, countdownBeatsLeft, jamActive])
 
-  if (goFlash) {
+  useEffect(() => {
+    if (pendingSongFlashRef.current && songBeat !== null && jamCountdown === null) {
+      pendingSongFlashRef.current = false
+      flashNow('song')
+    }
+  }, [songBeat, jamCountdown])
+
+  useEffect(
+    () => () => {
+      if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current)
+    },
+    [],
+  )
+
+  if (flash !== null) {
     return (
       <div className="perf-countdown perf-go" data-testid="perf-countdown-go">
         <span className="perf-countdown-label">同步起奏</span>
-        <span className="perf-countdown-value">GO!</span>
+        <span className="perf-countdown-value">{flash === 'jam' ? 'GO!' : '开始!'}</span>
       </div>
     )
   }
