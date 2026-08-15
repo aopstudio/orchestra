@@ -440,6 +440,13 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
       // 我的成员准备状态(服务器权威)回填本地乐观值
       const myMember = msg.members.find((m) => m.playerId === myIdRef.current)
       setMyReady(myMember?.ready ?? false)
+      // 同步房间曲目(歌曲高亮): 新加入者/重连没有历史 songSelected 广播,
+      // 靠这份快照看到房主选的歌;歌被取消(songId=null)时同步清空。
+      const song =
+        msg.songId === null
+          ? null
+          : (songsRef.current.find((s) => s.id === msg.songId) ?? null)
+      setSelectedSong(song)
       // 采纳我认领的声部: 选中的声部成为我的演奏声部,界面引导跟随。
       // 倒计时不在此启动 —— 只由房间「开始倒计时」按钮(songStart)统一触发。
       const myClaim = msg.parts.find((p) => p.playerId === myIdRef.current)
@@ -454,10 +461,8 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
         }
         return
       }
-      const song = songsRef.current.find((s) => s.id === msg.songId)
       const part = song?.parts.find((p) => p.id === myClaim.partId) ?? null
-      if (song === undefined || part === null) return
-      setSelectedSong(song)
+      if (song === null || part === null) return
       setSelectedPart(part)
       selectedPartRef.current = part
       // 创建该声部的判定器(引导/计分管线),倒计时由「开始」按钮统一触发

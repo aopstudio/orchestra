@@ -766,6 +766,41 @@ test('three players claim distinct parts, ready up, and start rock-groove togeth
   }
 })
 
+test('late joiner immediately sees the host\'s song pick, part claims, and ready state', async ({
+  browser,
+}) => {
+  const ctxA = await browser.newContext()
+  const pageA = await ctxA.newPage()
+  const roomCode = await createRoom(pageA, 'EarlyHost')
+
+  // 房主先选曲、认领声部、准备(在 B 加入之前完成)
+  await pageA.getByTestId('song-rock-groove').click()
+  await pageA.getByTestId('part-rock-groove-drums').click()
+  await expect(pageA.getByTestId('part-rock-groove-drums')).toContainText('我', {
+    timeout: 10_000,
+  })
+  await pageA.getByTestId('ready-btn').click()
+  await pageA.waitForTimeout(400)
+
+  // 另一个玩家随后加入 → 一进来就能看到房主选的歌 + 认领 + 准备状态
+  const ctxB = await browser.newContext()
+  const pageB = await ctxB.newPage()
+  await joinRoom(pageB, 'LateGuest', roomCode)
+  await expect(pageB.getByTestId('song-rock-groove')).toHaveAttribute('aria-pressed', 'true', {
+    timeout: 10_000,
+  })
+  await expect(pageB.getByTestId('part-rock-groove-drums')).toContainText('EarlyHost', {
+    timeout: 10_000,
+  })
+  await expect(pageB.getByTestId('ensemble-members')).toContainText('已准备', {
+    timeout: 10_000,
+  })
+  console.log('[e2e] late joiner sees host song/claim/ready snapshot immediately')
+
+  await ctxA.close()
+  await ctxB.close()
+})
+
 test('renaming yourself in-room syncs to peers and the part-claim table (blur commits, no extra UI)', async ({
   browser,
 }) => {
