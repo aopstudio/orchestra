@@ -19,6 +19,9 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true,
+    // 端口被占时报错而不是静默换端口 —— 避免 dev server 悄悄跑到 5175、
+    // 页面 502 却查不出原因(E2E 也固定用 5173,冲突时明确提示先停 dev server)。
+    strictPort: true,
     proxy: {
       '/ws': {
         target: process.env.VITE_WS_TARGET ?? 'ws://localhost:8080',
