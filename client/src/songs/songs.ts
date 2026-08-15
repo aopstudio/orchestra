@@ -372,9 +372,9 @@ const FRERE_JACQUES: Song = {
         { note: 64, beat: 20 }, { note: 60, beat: 21 },
         { note: 67, beat: 22 }, { note: 69, beat: 23 }, { note: 67, beat: 24 }, { note: 65, beat: 25 },
         { note: 64, beat: 26 }, { note: 60, beat: 27 },
-        // 标准谱: 2 5 1-(5 = G4)
-        { note: 62, beat: 28 }, { note: 67, beat: 29 }, { note: 60, beat: 30, duration: 2 },
-        { note: 62, beat: 32 }, { note: 67, beat: 33 }, { note: 60, beat: 34, duration: 2 },
+        // 标准谱: 2 5 1-(5 = 低音 G3)
+        { note: 62, beat: 28 }, { note: 55, beat: 29 }, { note: 60, beat: 30, duration: 2 },
+        { note: 62, beat: 32 }, { note: 55, beat: 33 }, { note: 60, beat: 34, duration: 2 },
       ],
     },
     {
