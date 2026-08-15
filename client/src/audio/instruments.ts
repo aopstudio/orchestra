@@ -51,7 +51,9 @@ export interface Instruments {
   setInstrumentVolume(instrument: InstrumentId, volume: number): void
 }
 
-const LOAD_TIMEOUT_MS = 10_000
+// 采样加载超时: 每个音色 ~2-3MB base64 + 数十个 ogg 解码,慢网络(海外/服务器
+// 带宽低)下 10s 常不够 → 被误判为不可用而降级成 8bit 合成音。放宽到 30s。
+const LOAD_TIMEOUT_MS = 30_000
 
 /**
  * 衰减型乐器(钢琴/贝斯): 按下后自然指数衰减,即使不松手也会越来越轻;
