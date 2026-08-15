@@ -1305,18 +1305,29 @@ export default function App() {
 
         <div className="pad-zone">
           <JudgeBadge badge={judgeBadge} />
-          {selectedPart === null && jamInstrument === 'drums' ? (
-            // 自由合奏 + 鼓音色: 键盘只映射鼓件,钢琴键在这里没有意义——
-            // 直接显示全部 GM 鼓垫(带键位提示),新手一眼看到该按哪
-            <DrumPad
-              notes={FREE_JAM_DRUM_NOTES}
-              guideCurrent={EMPTY_GUIDE}
-              guideUpcoming={EMPTY_GUIDE}
-              downNotes={downNotes}
-              remoteNotes={remoteNotes}
-              enabled={connState === 'connected'}
-              onHit={(note) => noteOn(note, true)}
-            />
+          {selectedPart?.instrument === 'drums' || (selectedPart === null && jamInstrument === 'drums') ? (
+            // 鼓声部(曲库认领 或 自由合奏选鼓)统一显示鼓垫——钢琴键对鼓没有意义;
+            // 流动谱模式下额外显示鼓件名的简谱流动谱(见 GuideTicker isDrums)。
+            <>
+              <DrumPad
+                notes={selectedPart === null ? FREE_JAM_DRUM_NOTES : selectedPart.notes}
+                guideCurrent={selectedPart === null ? EMPTY_GUIDE : guideCurrent}
+                guideUpcoming={selectedPart === null ? EMPTY_GUIDE : guideUpcoming}
+                downNotes={downNotes}
+                remoteNotes={remoteNotes}
+                enabled={connState === 'connected'}
+                onHit={(note) => noteOn(note, true)}
+              />
+              {selectedPart !== null && guideMode === 'ticker' && (
+                <GuideTicker
+                  notes={selectedPart.notes}
+                  getSongBeat={getSongBeat}
+                  prepBeats={prepBeats}
+                  enabled={connState === 'connected'}
+                  isDrums
+                />
+              )}
+            </>
           ) : (
             <>
               <JamPad
@@ -1330,25 +1341,14 @@ export default function App() {
                 soundTest={() => void handleSoundTest()}
                 soundTestBusy={soundTestBusy}
               />
-              {guideMode === 'ticker' ? (
+              {guideMode === 'ticker' && (
                 <GuideTicker
                   notes={selectedPart?.notes ?? []}
                   getSongBeat={getSongBeat}
                   prepBeats={prepBeats}
                   enabled={connState === 'connected'}
                 />
-              ) : selectedPart?.instrument === 'drums' ? (
-                // 乐器高亮模式 + 鼓声部: 琴键(48+)之外的 GM 鼓件在 DrumPad 上高亮
-                <DrumPad
-                  notes={selectedPart.notes}
-                  guideCurrent={guideCurrent}
-                  guideUpcoming={guideUpcoming}
-                  downNotes={downNotes}
-                  remoteNotes={remoteNotes}
-                  enabled={connState === 'connected'}
-                  onHit={(note) => noteOn(note, true)}
-                />
-              ) : null}
+              )}
             </>
           )}
           {/* 倒计时放在键盘/流动谱**下方**的文档流里,不遮挡任何演奏区域 */}

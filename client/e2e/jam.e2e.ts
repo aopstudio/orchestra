@@ -283,6 +283,50 @@ test('song guide: arm the rock-groove drums → countdown → guide highlight �
   await ctx.close()
 })
 
+test('drum part in ticker mode: unified drum pads + drum-name ticker labels (not 简谱 digits)', async ({
+  browser,
+}) => {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  await createRoom(page, 'TickerDrums')
+  await waitInstrumentsReady(page)
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
+
+  // 流动谱(ticker)模式 + 曲库鼓声部 → 演奏区必须是鼓垫(与自由合奏一致),不是钢琴键
+  await page.getByTestId('guide-mode-ticker').click()
+  await page.getByTestId('song-rock-groove').click()
+  await page.getByTestId('part-rock-groove-drums').click()
+  await expect(page.getByTestId('part-rock-groove-drums')).toContainText('我', {
+    timeout: 10_000,
+  })
+  await page.getByTestId('ready-btn').click()
+  await page.getByTestId('sync-start-btn').click()
+  await expect(page.getByTestId('songbook-countdown')).toBeVisible()
+
+  // 倒计时结束 → 鼓垫出现(统一),且流动谱同步显示
+  await expect(page.getByTestId('drumpad')).toBeVisible({ timeout: 25_000 })
+  await expect(page.getByTestId('guide-ticker')).toBeVisible({ timeout: 25_000 })
+
+  // 流动谱音符标签 = 击打乐器名(底鼓/军鼓/踩镲…),不是简谱数字
+  await expect
+    .poll(
+      () => page.locator('.guide-note[data-label]').first().getAttribute('data-label'),
+      { timeout: 25_000 },
+    )
+    .not.toBeNull()
+  const labels = await page.$$eval('.guide-note', (els) =>
+    els.map((el) => el.getAttribute('data-label') ?? ''),
+  )
+  const drumNames = ['底鼓', '军鼓', '踩镲', '开镲', '低嗵', '中嗵', '高嗵', '吊镲', '拍手', '边击']
+  expect(labels.length).toBeGreaterThan(0)
+  for (const label of labels) {
+    expect(drumNames).toContain(label)
+  }
+  console.log(`[e2e] drum ticker: pads unified + labels are drum names (${[...new Set(labels)].join('/')})`)
+
+  await ctx.close()
+})
+
 test('multi-instrument song: jingle-bells trumpet part arms, counts down, and guides on the keyboard', async ({
   browser,
 }) => {

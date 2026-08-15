@@ -11,6 +11,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react'
 import type { SongNote } from '../songs/songs'
 import { midiToTickerLabel } from '../guide/solfege'
+import { drumLabel } from '../input/drumNames'
 
 /** Timeline pixels per beat — dense melodies still get readable cells. */
 const BEAT_PX = 22
@@ -57,9 +58,17 @@ export interface GuideTickerProps {
   prepBeats: number
   /** False while disconnected — the strip renders dimmed. */
   enabled: boolean
+  /** 鼓声部: 音符没有音高,标签显示击打乐器名(底鼓/军鼓/踩镲…)而非简谱数字。 */
+  isDrums?: boolean
 }
 
-export default function GuideTicker({ notes, getSongBeat, prepBeats, enabled }: GuideTickerProps) {
+export default function GuideTicker({
+  notes,
+  getSongBeat,
+  prepBeats,
+  enabled,
+  isDrums = false,
+}: GuideTickerProps) {
   const viewportRef = useRef<HTMLDivElement | null>(null)
   const trackRef = useRef<HTMLDivElement | null>(null)
   const nowRef = useRef<HTMLSpanElement | null>(null)
@@ -148,6 +157,10 @@ export default function GuideTicker({ notes, getSongBeat, prepBeats, enabled }: 
     return out
   }, [totalBeats, prepBeats])
 
+  // 鼓声部标签 = 击打乐器名(底鼓/军鼓/踩镲…);旋律声部 = 简谱数字。
+  const labelOf = (note: number): string =>
+    isDrums ? (drumLabel(note) ?? midiToTickerLabel(note)) : midiToTickerLabel(note)
+
   return (
     <section className={`guide-ticker-panel panel${enabled ? '' : ' guide-ticker-off'}`}>
       <div className="guide-ticker-head">
@@ -177,23 +190,25 @@ export default function GuideTicker({ notes, getSongBeat, prepBeats, enabled }: 
             ))}
             {notes.map((n, i) => {
               const end = endBeatOf(n)
+              const label = labelOf(n.note)
+              const fullName = isDrums ? (drumLabel(n.note) ?? noteName(n.note)) : noteName(n.note)
               return (
                 <div
                   key={`${n.beat}-${n.note}-${i}`}
-                  className="guide-note"
+                  className={`guide-note${isDrums ? ' guide-note-drum' : ''}`}
                   data-testid="guide-note"
                   data-note={n.note}
                   data-beat={n.beat}
                   data-dur={end - n.beat}
-                  data-label={midiToTickerLabel(n.note)}
-                  data-name={noteName(n.note)}
-                  title={`${noteName(n.note)} · beat ${n.beat}`}
+                  data-label={label}
+                  data-name={fullName}
+                  title={`${fullName} · beat ${n.beat}`}
                   style={{
                     left: (prepBeats + n.beat) * BEAT_PX,
                     width: Math.max((end - n.beat) * BEAT_PX, MIN_CELL_PX),
                   }}
                 >
-                  <span className="guide-note-label">{midiToTickerLabel(n.note)}</span>
+                  <span className="guide-note-label">{label}</span>
                 </div>
               )
             })}
