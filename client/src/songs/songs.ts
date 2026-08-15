@@ -789,7 +789,7 @@ const CANON: Song = {
 /**
  * 友谊地久天长(公有领域民谣)——四乐器合奏
  * C 大调,4/4 拍,100 BPM,8 小节(32 拍)。
- * 编制: 小号(旋律) + 小提琴(三度和声) + 贝斯(根音) + 鼓(轻柔节奏)。
+ * 编制: 小号(旋律,按用户提供版本) + 小提琴(三度和声) + 贝斯(根音) + 鼓(轻柔节奏)。
  */
 const AULD_LANG_SYNE: Song = {
   id: 'auld-lang-syne',
@@ -801,15 +801,17 @@ const AULD_LANG_SYNE: Song = {
       id: 'melody',
       name: '小号 · 旋律',
       instrument: 'trumpet',
-      notes: [
-        { note: 60, beat: 0 }, { note: 60, beat: 1 }, { note: 67, beat: 2 }, { note: 69, beat: 3 },
-        { note: 69, beat: 4 }, { note: 67, beat: 5 }, { note: 64, beat: 6 }, { note: 60, beat: 7 },
-        { note: 67, beat: 8 }, { note: 67, beat: 9 }, { note: 69, beat: 10 }, { note: 69, beat: 11 },
-        { note: 67, beat: 12, duration: 2 }, { note: 64, beat: 14, duration: 2 },
-        { note: 60, beat: 16 }, { note: 60, beat: 17 }, { note: 67, beat: 18 }, { note: 69, beat: 19 },
-        { note: 69, beat: 20 }, { note: 67, beat: 21 }, { note: 64, beat: 22 }, { note: 60, beat: 23 },
-        { note: 67, beat: 24 }, { note: 67, beat: 25 }, { note: 64, beat: 26 }, { note: 62, beat: 27 },
-        { note: 60, beat: 28, duration: 4 },
+            notes: [
+        // 用户提供的旋律(简谱,逗号=低八度):
+        // 5, 1 1 1 3 | 2 1 2 3 | 2 1 1 3 | 5 6 6 5 | 3 3 1 2 | 1 2 3 2 | 1 6, 6, | 5, 1
+        { note: 55, beat: 0 }, { note: 60, beat: 1 }, { note: 60, beat: 2 }, { note: 60, beat: 3 },
+        { note: 64, beat: 4 }, { note: 62, beat: 5 }, { note: 60, beat: 6 }, { note: 62, beat: 7 },
+        { note: 64, beat: 8 }, { note: 62, beat: 9 }, { note: 60, beat: 10 }, { note: 60, beat: 11 },
+        { note: 64, beat: 12 }, { note: 67, beat: 13 }, { note: 69, beat: 14 }, { note: 69, beat: 15 },
+        { note: 67, beat: 16 }, { note: 64, beat: 17 }, { note: 64, beat: 18 }, { note: 60, beat: 19 },
+        { note: 62, beat: 20 }, { note: 60, beat: 21 }, { note: 62, beat: 22 }, { note: 64, beat: 23 },
+        { note: 62, beat: 24 }, { note: 60, beat: 25 }, { note: 57, beat: 26 }, { note: 57, beat: 27 },
+        { note: 55, beat: 28 }, { note: 60, beat: 29, duration: 3 },
       ],
     },
     {
