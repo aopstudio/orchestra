@@ -1358,6 +1358,7 @@ export default function App() {
             jamActive={jamActive}
             countdownBeatsLeft={countdownBeatsLeft}
             songBeat={songBeatState}
+            bpm={bpm}
           />
           {showScore && selectedSong !== null && (
             <ScoreView

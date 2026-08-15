@@ -24,6 +24,8 @@ export interface PerformanceCountdownProps {
   countdownBeatsLeft: number | null
   /** 歌曲已推进到的拍位(null = 歌曲尚未开始)——用于判定歌曲真的开演了。 */
   songBeat: number | null
+  /** 房间当前速度(BPM)——决定 GO!/开始! 闪现的时长(1 拍,而非固定秒数)。 */
+  bpm: number
 }
 
 type FlashKind = 'jam' | 'song'
@@ -34,6 +36,7 @@ export default function PerformanceCountdown({
   jamActive,
   countdownBeatsLeft,
   songBeat,
+  bpm,
 }: PerformanceCountdownProps) {
   const [flash, setFlash] = useState<FlashKind | null>(null)
   const flashTimerRef = useRef<number | null>(null)
@@ -43,10 +46,13 @@ export default function PerformanceCountdown({
   const flashNow = (kind: FlashKind): void => {
     if (flashTimerRef.current !== null) window.clearTimeout(flashTimerRef.current)
     setFlash(kind)
+    // GO!/开始! 只亮 1 拍(60/bpm 秒)——长于 1 拍反而误导演奏者(该敲下一拍了)。
+    // clamp: 防止 bpm 极端时闪太快看不见(≥0.35s)或拖太长(≤1.5s)。
+    const oneBeatMs = Math.min(1500, Math.max(350, (60 / Math.max(1, bpm)) * 1000))
     flashTimerRef.current = window.setTimeout(() => {
       setFlash(null)
       flashTimerRef.current = null
-    }, 1500)
+    }, oneBeatMs)
   }
 
   // 倒计时归零瞬间: 自由合奏立即闪 GO!;歌曲等第一个歌曲拍(约半拍后)闪「开始!」。
