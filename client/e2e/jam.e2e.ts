@@ -713,9 +713,22 @@ test('jam sync: two players start a free jam together after a custom lead-in (ba
   const bLeft = await pageB.getByTestId('jam-beats-left').textContent()
   expect(aLeft).toBe(bLeft)
 
+  // 演奏区(键盘上方)同步显示同一倒计时读数 —— 演奏者余光可见。
+  // 同一 evaluate 内读取面板与演奏区两个读数,保证同一渲染快照(数值随时钟递减)。
+  await expect(pageA.getByTestId('perf-countdown')).toBeVisible({ timeout: 10_000 })
+  await expect(pageB.getByTestId('perf-countdown')).toBeVisible({ timeout: 10_000 })
+  const bothA = await pageA.evaluate(() => ({
+    panel: document.querySelector('[data-testid="jam-beats-left"]')?.textContent ?? null,
+    perf: document.querySelector('[data-testid="perf-countdown-value"]')?.textContent ?? null,
+  }))
+  expect(bothA.perf).toBe(bothA.panel)
+  expect(bothA.perf).not.toBe('…')
+
   // 倒计时结束 → 双方显示"演奏中"
   await expect(pageA.getByTestId('jam-go')).toBeVisible({ timeout: 25_000 })
   await expect(pageB.getByTestId('jam-go')).toBeVisible({ timeout: 25_000 })
+  await expect(pageA.getByTestId('perf-countdown')).toHaveCount(0)
+  await expect(pageB.getByTestId('perf-countdown')).toHaveCount(0)
   console.log('[e2e] jam sync: both started together after lead-in')
 
   // 弱起变体: B 发起

@@ -45,6 +45,7 @@ import InstrumentPicker from './ui/InstrumentPicker'
 import LinkUpPanel from './ui/LinkUpPanel'
 import TempoPanel from './ui/TempoPanel'
 import JamSyncPanel from './ui/JamSyncPanel'
+import PerformanceCountdown from './ui/PerformanceCountdown'
 import SongPicker from './ui/SongPicker'
 import JudgeBadge, { type JudgeBadgeData } from './ui/JudgeBadge'
 import { nextBarBoundary } from './guide/barBoundary'
@@ -1320,6 +1321,12 @@ export default function App() {
 
         <div className="pad-zone">
           <JudgeBadge badge={judgeBadge} />
+          <PerformanceCountdown
+            jamCountdown={jamCountdown}
+            jamBeatsLeft={jamBeatsLeft}
+            jamActive={jamActive}
+            countdownBeatsLeft={countdownBeatsLeft}
+          />
           <JamPad
             downNotes={downNotes}
             remoteNotes={remoteNotes}
