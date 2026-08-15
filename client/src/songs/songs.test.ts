@@ -91,4 +91,38 @@ describe('内置曲库', () => {
       expect(instruments.size).toBeGreaterThanOrEqual(3)
     }
   })
+
+  it('非鼓声部同一拍至多一个音符(旋律/和声/贝斯同拍双音会让流动谱重叠、新手单手按不过来)', () => {
+    for (const song of SONGS) {
+      for (const part of song.parts) {
+        if (part.instrument === 'drums') continue
+        const seen = new Set<number>()
+        for (const n of part.notes) {
+          expect(
+            seen.has(n.beat),
+            `${song.id}/${part.id} beat ${n.beat} has multiple notes`,
+          ).toBe(false)
+          seen.add(n.beat)
+        }
+      }
+    }
+  })
+
+  it('每个声部音符都落在自身曲目的总拍长内(时值不悬挂到下一轮)', () => {
+    for (const song of SONGS) {
+      const total = Math.max(
+        ...song.parts.flatMap((p: SongPart) =>
+          p.notes.map((n) => n.beat + (n.duration ?? 1)),
+        ),
+      )
+      for (const part of song.parts) {
+        for (const n of part.notes) {
+          expect(
+            n.beat + (n.duration ?? 1),
+            `${song.id}/${part.id} note at ${n.beat} overflows ${total}`,
+          ).toBeLessThanOrEqual(total + 0.001)
+        }
+      }
+    }
+  })
 })
