@@ -364,15 +364,18 @@ export default function SongPicker({
               等所有在线玩家点「准备就绪」后即可开始
             </span>
           )}
-          <button
-            type="button"
-            className="restart-btn"
-            data-testid="restart-btn"
-            disabled={!enabled}
-            onClick={() => onRestart?.()}
-          >
-            ↻ 重新开始
-          </button>
+          {/* 重新开始: 仅房主可见(与「开始倒计时」同一权限) */}
+          {isOwner && (
+            <button
+              type="button"
+              className="restart-btn"
+              data-testid="restart-btn"
+              disabled={!enabled}
+              onClick={() => onRestart?.()}
+            >
+              ↻ 重新开始
+            </button>
+          )}
         </div>
       )}
 
