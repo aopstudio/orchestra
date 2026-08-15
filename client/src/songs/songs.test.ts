@@ -108,6 +108,23 @@ describe('内置曲库', () => {
     }
   })
 
+  it('低音伴奏与贝斯音色不混淆: 纯旋律+低音两声部曲目(非多乐器),低音部必须是钢琴;贝斯只属于多乐器合奏', () => {
+    for (const song of SONGS) {
+      const parts = song.parts
+      const hasMelody = parts.some((p: SongPart) => p.id === 'melody')
+      const hasBass = parts.some((p: SongPart) => p.id === 'bass')
+      if (parts.length === 2 && hasMelody && hasBass) {
+        // 非多乐器: 低音部是钢琴低音(与旋律同音色),不是贝斯
+        const bassPart = parts.find((p: SongPart) => p.id === 'bass')
+        expect(bassPart?.instrument, `${song.id} 低音部`).toBe('piano')
+      } else if (hasBass) {
+        // 多乐器合奏里的贝斯声部必须是 bass 音色(贝斯专属)
+        const bassPart = parts.find((p: SongPart) => p.id === 'bass')
+        expect(bassPart?.instrument, `${song.id} 贝斯声部`).toBe('bass')
+      }
+    }
+  })
+
   it('每个声部音符都落在自身曲目的总拍长内(时值不悬挂到下一轮)', () => {
     for (const song of SONGS) {
       const total = Math.max(
