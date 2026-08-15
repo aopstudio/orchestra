@@ -28,6 +28,8 @@ export type ClientMsg =
   | { type: 'setTempo'; bpm: number }
   | { type: 'setBpi'; bpi: number }
   | { type: 'startSong' }
+  /** 房主重新开始当前曲目(全房间同步重启,不需要重新准备)。 */
+  | { type: 'restartSong' }
   | { type: 'startJam'; bars: number; pickup: boolean }
   /** 房主(或唯一在线用户)选定房间曲目;null = 取消选曲。 */
   | { type: 'selectSong'; songId: string | null }

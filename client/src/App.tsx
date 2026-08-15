@@ -1115,22 +1115,11 @@ export default function App() {
 
   /** Restart the armed song: reset position + judgment, run the countdown again. */
   const handleRestart = (): void => {
+    // 重新开始 = 全房间同步重启: 请求服务器广播新的 songStart 边界拍,
+    // 所有玩家(含非房主)通过 onSongStart 统一重置位置/判定并重新倒计时。
+    // 纯本地重置只动房主自己,别人简谱停在旧位置(必现 bug,已修)。
     if (selectedPartRef.current === null) return
-    songStartBeatRef.current = null
-    if (latestBeatRef.current === null) {
-      pendingArmRef.current = true
-    } else {
-      startCountdown()
-    }
-    setGuideCurrent(new Set())
-    setGuideUpcoming(new Set())
-    setGuideProgress(0)
-    setSongBeatState(null)
-    judgeRef.current = new Judge(selectedPartRef.current.notes, {
-      enabled: judgeEnabledRef.current,
-    })
-    setJudgeStats(judgeRef.current.stats())
-    setJudgeBadge(null)
+    wsRef.current?.sendRestartSong()
   }
 
   /** Toggle the judgment pipeline (mirrors the metronome toggle). */

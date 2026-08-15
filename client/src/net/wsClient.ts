@@ -123,6 +123,11 @@ export class WsClient {
     this.send({ type: 'startSong' })
   }
 
+  /** 房主请求重新开始当前曲目(服务器广播,全房间同步重启)。 */
+  sendRestartSong(): void {
+    this.send({ type: 'restartSong' })
+  }
+
   /** 请求自由合奏同步起奏(bars 预备小节后,pickup 决定弱起或小节开始)。 */
   sendStartJam(bars: number, pickup: boolean): void {
     this.send({ type: 'startJam', bars, pickup })

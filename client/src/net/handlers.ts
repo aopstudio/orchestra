@@ -495,10 +495,18 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
 
     onSongStart: (msg) => {
       // 房间同步开始(Phase 1 合奏): 服务器广播统一的开始边界拍。
-      // 已武装且尚未开始的玩家,把自己的倒计时锚到该边界,全房间同一拍起奏。
+      // 首次开始或房主「重新开始」都走这里 —— 重置位置/判定,再倒计时,
+      // 保证全房间(含非房主)在同一拍重启,简谱一起流动。
       const part = selectedPartRef.current
-      if (part === null || songStartBeatRef.current !== null) return
+      if (part === null) return
+      songStartBeatRef.current = null
       countdownUntilRef.current = msg.beat
+      judgeRef.current = new Judge(part.notes, { enabled: judgeEnabledRef.current })
+      setJudgeStats(judgeRef.current.stats())
+      setGuideCurrent(new Set())
+      setGuideUpcoming(new Set())
+      setGuideProgress(0)
+      setJudgeBadge(null)
       const now = latestBeatRef.current
       const total =
         now === null ? Math.max(1, msg.beat) : Math.max(1, Math.ceil(msg.beat - now))

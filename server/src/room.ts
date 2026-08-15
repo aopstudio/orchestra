@@ -26,6 +26,11 @@ export interface Room {
    */
   startSong(memberId: string, minAheadBeats?: number): 'ok' | 'notOwner' | 'notReady'
   /**
+   * 房主重新开始当前曲目: 广播一个新的 songStart 边界拍,全房间同步重启。
+   * 不需要重新准备(与 startSong 不同)。
+   */
+  restartSong(memberId: string, minAheadBeats?: number): 'ok' | 'notOwner'
+  /**
    * 自由合奏同步起奏: `bars` 预备小节后统一起奏。
    * pickup=false 起于小节边界(强拍);pickup=true 起于边界前一拍(弱起)。
    */
@@ -287,6 +292,18 @@ export function createRoom(
       const allReady = [...members.values()].every((m) => m.ready)
       const hasClaim = ensemble !== null && ensemble.claims.length > 0
       if (!allReady || !hasClaim) return 'notReady'
+      const serverTime = now()
+      const beat = beatClock.beatAt(serverTime)
+      const boundary = nextBarBoundary(beat, beatClock.bpi, minAheadBeats)
+      const msg: ServerMsg = { type: 'songStart', beat: boundary, bpi: beatClock.bpi }
+      for (const m of members.values()) {
+        m.send(msg)
+      }
+      return 'ok'
+    },
+
+    restartSong(memberId, minAheadBeats = 4) {
+      if (memberId !== ownerId) return 'notOwner'
       const serverTime = now()
       const beat = beatClock.beatAt(serverTime)
       const boundary = nextBarBoundary(beat, beatClock.bpi, minAheadBeats)

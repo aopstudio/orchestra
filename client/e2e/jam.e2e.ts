@@ -801,6 +801,39 @@ test('late joiner immediately sees the host\'s song pick, part claims, and ready
   await ctxB.close()
 })
 
+test('host restart re-syncs the whole room: both players get a fresh countdown and the guide restarts', async ({
+  browser,
+}) => {
+  const ctxA = await browser.newContext()
+  const pageA = await ctxA.newPage()
+  const roomCode = await createRoom(pageA, 'RestartHost')
+  const ctxB = await browser.newContext()
+  const pageB = await ctxB.newPage()
+  await joinRoom(pageB, 'RestartGuest', roomCode)
+
+  // 两人认领不同声部、都准备、房主开始
+  await pageA.getByTestId('song-rock-groove').click()
+  await pageA.getByTestId('part-rock-groove-drums').click()
+  await pageB.getByTestId('part-rock-groove-keys').click()
+  await pageA.getByTestId('ready-btn').click()
+  await pageB.getByTestId('ready-btn').click()
+  await pageA.getByTestId('sync-start-btn').click()
+
+  // 倒计时结束、引导流动起来后,房主点「重新开始」
+  await expect(pageA.getByTestId('songbook-countdown')).toBeVisible({ timeout: 15_000 })
+  await expect(pageA.getByTestId('songbook-countdown')).toHaveCount(0, { timeout: 20_000 })
+  await expect(pageB.getByTestId('songbook-countdown')).toHaveCount(0, { timeout: 20_000 })
+
+  // 房主重新开始 → 双方都进入新一轮倒计时(不是只有房主)
+  await pageA.getByTestId('restart-btn').click()
+  await expect(pageA.getByTestId('songbook-countdown')).toBeVisible({ timeout: 10_000 })
+  await expect(pageB.getByTestId('songbook-countdown')).toBeVisible({ timeout: 10_000 })
+  console.log('[e2e] restart: both players re-enter the countdown together')
+
+  await ctxA.close()
+  await ctxB.close()
+})
+
 test('renaming yourself in-room syncs to peers and the part-claim table (blur commits, no extra UI)', async ({
   browser,
 }) => {

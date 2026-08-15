@@ -450,6 +450,28 @@ describe('房间合奏编排 (selectSong / selectPart / setReady / 权限)', () 
     ])
   })
 
+  it('restartSong: 仅房主可调用,不需要重新准备,广播新的 songStart', () => {
+    let t = 1000
+    const room = createRoom(120, 4, () => t, 'TESTRO')
+    const a = makeMember('a', 'Alice')
+    const b = makeMember('b', 'Bob')
+    room.join(a.member)
+    room.join(b.member)
+    room.selectSong('a', 'rock')
+    room.selectPart('a', 'rock', 'drums')
+    room.selectPart('b', 'rock', 'bass')
+    a.sent.length = 0
+    b.sent.length = 0
+
+    // 非房主不能重新开始
+    expect(room.restartSong('b')).toBe('notOwner')
+    // 房主重新开始: 不需要任何成员 ready
+    expect(room.restartSong('a')).toBe('ok')
+    const startMsg = b.sent.find((m) => m.type === 'songStart')
+    expect(startMsg).toMatchObject({ type: 'songStart' })
+    expect(a.sent.find((m) => m.type === 'songStart')).toBeDefined()
+  })
+
   it('唯一在线成员可选曲;房主离开后房主转移给最早的成员', () => {
     const room = createRoom(120, 4, () => 1000, 'TESTRO')
     const a = makeMember('a', 'Alice')

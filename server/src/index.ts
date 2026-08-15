@@ -207,6 +207,11 @@ wss.on('connection', (rawWs) => {
               : '需要所有在线玩家都准备就绪后才能开始',
         })
       }
+    } else if (msg.type === 'restartSong') {
+      const result = room.restartSong(member.id)
+      if (result !== 'ok') {
+        member.send({ type: 'partError', message: '只有房主可以重新开始' })
+      }
     } else if (msg.type === 'startJam') {
       room.startJam(msg.bars, msg.pickup)
     } else if (msg.type === 'selectSong') {
