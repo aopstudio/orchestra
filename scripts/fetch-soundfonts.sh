@@ -71,6 +71,20 @@ import json, os, sys, urllib.request
 dm_path, out_dir, base = sys.argv[1], sys.argv[2], sys.argv[3]
 d = json.load(open(dm_path))
 samples = d.get('samples', [])
+# smplr 的 drumMachineToPreset 把 MIDI 36+i 线性映射到 samples[i],而 RegionMatcher
+# 的 group keyHigh 默认 127 —— 索引 >= 92(MIDI >= 128)的样本永远匹配不到
+# (tom-hi/tom-low 之前因此完全静音)。重排: 每组第一个样本挪到最前
+# (首现顺序,索引 0..15),其余保持原顺序;采样按文件名取,顺序无关。
+seen = set(); firsts = []; rest = []
+for s in samples:
+    base_name = s.split('/')[0]
+    if base_name not in seen:
+        seen.add(base_name); firsts.append(s)
+    else:
+        rest.append(s)
+d['samples'] = firsts + rest
+json.dump(d, open(dm_path, 'w'))
+samples = d['samples']
 ok = 0
 for s in samples:
     rel = s + '.ogg'
