@@ -148,6 +148,7 @@ wss.on('connection', (rawWs) => {
   const member: RoomMember = {
     id: randomUUID(),
     name: '',
+    ready: false,
     send: (msg: ServerMsg) => ws.send(JSON.stringify(msg)),
   }
   let joined = false
@@ -196,16 +197,37 @@ wss.on('connection', (rawWs) => {
     } else if (msg.type === 'setBpi') {
       room.setBpi(msg.bpi)
     } else if (msg.type === 'startSong') {
-      room.startSong()
+      const result = room.startSong(member.id)
+      if (result !== 'ok') {
+        member.send({
+          type: 'partError',
+          message:
+            result === 'notOwner'
+              ? '只有房主可以开始倒计时'
+              : '需要所有在线玩家都准备就绪后才能开始',
+        })
+      }
     } else if (msg.type === 'startJam') {
       room.startJam(msg.bars, msg.pickup)
+    } else if (msg.type === 'selectSong') {
+      const result = room.selectSong(member.id, msg.songId)
+      if (result !== 'ok') {
+        member.send({
+          type: 'partError',
+          message: '只有房主(或唯一在线玩家)可以选曲',
+        })
+      }
     } else if (msg.type === 'selectPart') {
       const result = room.selectPart(member.id, msg.songId, msg.partId)
       if (result !== 'ok') {
         member.send({
           type: 'partError',
           message:
-            result === 'taken' ? '该声部已被其他人选中,请选择别的声部' : '歌曲不一致或无法选择',
+            result === 'taken'
+              ? '该声部已被其他人选中,请选择别的声部'
+              : result === 'noSong'
+                ? '请先等房主选定曲目'
+                : '歌曲不一致或无法选择',
         })
       }
     } else if (msg.type === 'setReady') {

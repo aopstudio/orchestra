@@ -27,15 +27,29 @@ export type ClientMsg =
   | { type: 'setBpi'; bpi: number }
   | { type: 'startSong' }
   | { type: 'startJam'; bars: number; pickup: boolean }
-  /** 认领某首歌的某个声部(房间级编排,同一声部只能一人选)。 */
-  | { type: 'selectPart'; songId: string; partId: string }
-  /** 准备/取消准备(就绪后由发起人统一开始倒计时)。 */
+  /** 房主(或唯一在线用户)选定房间曲目;null = 取消选曲。 */
+  | { type: 'selectSong'; songId: string | null }
+  /**
+   * 认领/取消认领房间曲目的某个声部(房间级编排,同一声部只能一人选)。
+   * partId=null 表示取消自己的认领。歌曲必须等于房主选定的歌曲。
+   */
+  | { type: 'selectPart'; songId: string; partId: string | null }
+  /** 准备/取消准备(所有在线玩家都准备后,由房主统一开始倒计时)。 */
   | { type: 'setReady'; ready: boolean }
   | { type: 'sync'; t1: number }
 
 /** 服务器 → 客户端 */
 export type ServerMsg =
-  | { type: 'welcome'; id: string; name: string; roomCode: string; bpm: number; bpi: number }
+  | {
+      type: 'welcome'
+      id: string
+      name: string
+      roomCode: string
+      bpm: number
+      bpi: number
+      /** 房主(房间创建者)的玩家 id —— 选曲/开始的权限归属。 */
+      ownerId: string
+    }
   | { type: 'roomError'; message: string }
   | { type: 'peerJoined'; id: string; name: string }
   | { type: 'peerLeft'; id: string }
@@ -70,16 +84,26 @@ export type ServerMsg =
       pickup: boolean
     }
   | {
-      /** 房间合奏编排状态(声部认领/准备)。广播给全房间。 */
+      /** 房主选定/取消房间曲目 —— 全房间同步高亮曲库。 */
+      type: 'songSelected'
+      songId: string | null
+    }
+  | {
+      /**
+       * 房间合奏编排状态(房主/歌曲/声部认领/在线成员准备)。
+       * 每次变化广播给全房间,新成员加入时也会收到一次。
+       */
       type: 'ensembleState'
-      songId: string
+      songId: string | null
       bpi: number
+      ownerId: string
       parts: Array<{
         partId: string
         playerId: string
         playerName: string
         ready: boolean
       }>
+      members: Array<{ playerId: string; playerName: string; ready: boolean }>
     }
   | { type: 'partError'; message: string }
 

@@ -81,6 +81,7 @@ function makeHandlers(): { handlers: WsHandlers; welcomes: unknown[] } {
     onSongStart: () => {},
     onJamStart: () => {},
     onEnsembleState: () => {},
+    onSongSelected: () => {},
     onPartError: () => {},
   }
   return { handlers, welcomes }

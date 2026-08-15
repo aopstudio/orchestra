@@ -812,6 +812,55 @@ button {
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.4);
 }
 
+/* 在线玩家准备区(房主选曲后显示) */
+.ensemble-members {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--s-2) 0;
+}
+
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink);
+}
+
+.member-row em {
+  font-style: normal;
+  color: var(--amber);
+}
+
+.member-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-faint);
+  flex: none;
+}
+
+.member-ready .member-dot {
+  background: var(--cyan);
+  box-shadow: 0 0 8px rgba(65, 227, 199, 0.6);
+}
+
+.member-ready-text {
+  margin-left: auto;
+  color: var(--ink-faint);
+}
+
+.member-ready .member-ready-text {
+  color: var(--cyan);
+}
+
+.song-pick-locked {
+  font-size: 11px;
+  color: var(--amber);
+  margin-bottom: var(--s-2);
+}
+
 .share-code {
   font-family: var(--font-mono);
   letter-spacing: 0.25em;

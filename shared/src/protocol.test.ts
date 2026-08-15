@@ -148,11 +148,18 @@ test('jamStart 广播形状(自由合奏起奏)', () => {
   }>()
 })
 
-test('selectPart 消息形状', () => {
+test('selectPart 消息形状(partId 可为 null 表示取消认领)', () => {
   expectTypeOf<Extract<ClientMsg, { type: 'selectPart' }>>().toEqualTypeOf<{
     type: 'selectPart'
     songId: string
-    partId: string
+    partId: string | null
+  }>()
+})
+
+test('selectSong 消息形状(songId 可为 null 表示取消选曲)', () => {
+  expectTypeOf<Extract<ClientMsg, { type: 'selectSong' }>>().toEqualTypeOf<{
+    type: 'selectSong'
+    songId: string | null
   }>()
 })
 
@@ -163,12 +170,21 @@ test('setReady 消息形状', () => {
   }>()
 })
 
-test('ensembleState 广播形状', () => {
+test('ensembleState 广播形状(房主/成员准备)', () => {
   expectTypeOf<Extract<ServerMsg, { type: 'ensembleState' }>>().toEqualTypeOf<{
     type: 'ensembleState'
-    songId: string
+    songId: string | null
     bpi: number
+    ownerId: string
     parts: Array<{ partId: string; playerId: string; playerName: string; ready: boolean }>
+    members: Array<{ playerId: string; playerName: string; ready: boolean }>
+  }>()
+})
+
+test('songSelected 广播形状', () => {
+  expectTypeOf<Extract<ServerMsg, { type: 'songSelected' }>>().toEqualTypeOf<{
+    type: 'songSelected'
+    songId: string | null
   }>()
 })
 
@@ -187,5 +203,6 @@ test('welcome 消息形状(带房间码)', () => {
     roomCode: string
     bpm: number
     bpi: number
+    ownerId: string
   }>()
 })

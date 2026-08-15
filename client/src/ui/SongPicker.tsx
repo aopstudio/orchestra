@@ -18,7 +18,7 @@ import type { JudgeStats } from '../guide/judge'
 export interface SongPickerProps {
   /** Built-in songbook. */
   songs: Song[]
-  /** Currently selected song id (or null before a pick). */
+  /** Currently selected song id (room-wide; driven by the host's pick) or null. */
   selectedSongId: string | null
   onSelectSong: (id: string) => void
   /** Currently armed part id (or null before a pick). */
@@ -26,6 +26,10 @@ export interface SongPickerProps {
   onSelectPart: (partId: string) => void
   /** Picking is only allowed while connected (mirrors the tempo/tsig controls). */
   enabled: boolean
+  /** 选曲权: 房主或唯一在线玩家 —— 其他人只读房主选的歌。 */
+  canSelectSong: boolean
+  /** 我是否为房主(「开始倒计时」按钮仅房主可见)。 */
+  isOwner: boolean
   /** Song playback progress 0..1 (from the guide engine) — drives the amber line. */
   progress?: number
   /** Whether note judgment is active. */
@@ -47,20 +51,22 @@ export interface SongPickerProps {
   /** 谱面(OSMD 总谱/分谱)开关。 */
   showScore?: boolean
   onToggleScore?: () => void
-  /** 请求房间同步开始: 全房间已武装的玩家在同一小节边界起奏。 */
+  /** 请求房间同步开始(仅房主;服务器校验所有在线玩家已准备)。 */
   onSyncStart?: () => void
-  /** 房间合奏编排状态(声部认领/准备)。 */
+  /** 房间合奏编排状态(房主/歌曲/声部认领/成员准备)。 */
   ensemble?: {
-    songId: string
+    songId: string | null
     bpi: number
+    ownerId: string
     parts: Array<{ partId: string; playerId: string; playerName: string; ready: boolean }>
+    members: Array<{ playerId: string; playerName: string; ready: boolean }>
   } | null
   /** 我的玩家 id(判断认领归属)。 */
   myId?: string | null
   /** 我是否已准备。 */
   myReady?: boolean
   onToggleReady?: () => void
-  /** 编排开始是否就绪(有人认领且全部准备)。 */
+  /** 编排开始是否就绪(房主 + 有人认领 + 所有在线玩家已准备)。 */
   canStart?: boolean
 }
 
@@ -77,6 +83,8 @@ export default function SongPicker({
   selectedPartId,
   onSelectPart,
   enabled,
+  canSelectSong,
+  isOwner,
   progress = 0,
   judgeEnabled = true,
   onToggleJudge,
@@ -141,6 +149,11 @@ export default function SongPicker({
 
       {open && (
         <>
+          {!canSelectSong && (
+            <p className="songbook-hint" data-testid="song-pick-locked">
+              🔒 由房主选曲 · 选定后即可认领声部
+            </p>
+          )}
           <div className="songbook-list" role="radiogroup" aria-label="Songs">
         {songs.map((song) => {
           const active = song.id === selectedSongId
@@ -150,8 +163,9 @@ export default function SongPicker({
               type="button"
               className={active ? 'song-row song-row-active' : 'song-row'}
               data-testid={`song-${song.id}`}
-              disabled={!enabled}
+              disabled={!enabled || !canSelectSong}
               aria-pressed={active}
+              title={canSelectSong ? (active ? '再点一下取消选曲' : '选择这首歌(全房间同步)') : '仅房主可选曲'}
               onClick={() => onSelectSong(song.id)}
             >
               <span className="song-row-name">{song.title}</span>
@@ -163,7 +177,7 @@ export default function SongPicker({
 
       {selectedSong !== null && (
         <div className="songbook-parts">
-          <span className="field-label">Parts · 声部</span>
+          <span className="field-label">Parts · 声部(再点一下取消)</span>
           <div
             className="tsig-pills"
             role="radiogroup"
@@ -294,6 +308,32 @@ export default function SongPicker({
         )}
       </div>
 
+      {/* 在线玩家准备区: 选曲后所有在线玩家可见(未认领声部的玩家也能点「准备」) */}
+      {ensemble !== null && ensemble.songId !== null && (
+        <div className="ensemble-members" data-testid="ensemble-members">
+          <span className="field-label">玩家准备</span>
+          {ensemble.members.map((m) => (
+            <span key={m.playerId} className={`member-row${m.ready ? ' member-ready' : ''}`}>
+              <span className="member-dot" />
+              {m.playerName}
+              {m.playerId === myId && <em>(我)</em>}
+              <span className="member-ready-text">{m.ready ? '已准备 ✓' : '…'}</span>
+            </span>
+          ))}
+          <button
+            type="button"
+            className={`ready-btn${myReady ? ' ready-btn-on' : ''}`}
+            data-testid="ready-btn"
+            disabled={!enabled}
+            aria-pressed={myReady}
+            onClick={() => onToggleReady?.()}
+          >
+            <span className="ready-dot" />
+            {myReady ? '我已准备 ✓' : '准备就绪'}
+          </button>
+        </div>
+      )}
+
       {armed && (
         <div className="songbook-actions">
           {countdownBeatsLeft !== null && countdownBeatsLeft > 0 && (
@@ -301,30 +341,27 @@ export default function SongPicker({
               准备 · <b>{countdownBeatsLeft}</b>
             </span>
           )}
-          <button
-            type="button"
-            className={`ready-btn${myReady ? ' ready-btn-on' : ''}`}
-            data-testid="ready-btn"
-            disabled={!enabled || !myHasClaim}
-            aria-pressed={myReady}
-            onClick={() => onToggleReady?.()}
-          >
-            <span className="ready-dot" />
-            {myReady ? '我已准备 ✓' : myHasClaim ? '准备就绪' : '先选声部'}
-          </button>
-          <button
-            type="button"
-            className="sync-start-btn"
-            data-testid="sync-start-btn"
-            disabled={!enabled || !canStart}
-            onClick={() => onSyncStart?.()}
-            title={canStart ? undefined : '需要所有认领声部的玩家都已准备'}
-          >
-            ▶ 开始倒计时
-          </button>
-          {!canStart && myHasClaim && !myReady && (
+
+          {/* 开始倒计时: 仅房主可见;所有在线玩家准备后可用 */}
+          {isOwner && (
+            <button
+              type="button"
+              className="btn btn-primary sync-start-btn"
+              data-testid="sync-start-btn"
+              disabled={!enabled || !canStart}
+              onClick={() => onSyncStart?.()}
+              title={
+                canStart
+                  ? '全房间在预备小节后统一起奏'
+                  : '需要所有在线玩家都准备就绪'
+              }
+            >
+              ▶ 开始倒计时
+            </button>
+          )}
+          {!canStart && isOwner && !myReady && (
             <span className="songbook-hint" data-testid="sync-start-hint">
-              点击「准备就绪」后即可开始
+              等所有在线玩家点「准备就绪」后即可开始
             </span>
           )}
           <button
@@ -340,8 +377,8 @@ export default function SongPicker({
       )}
 
       <p className="songbook-note" data-testid="ensemble-note">
-        多人合奏: 每人认领一个声部(同一声部互斥),全部「准备就绪」后点「开始倒计时」,
-        全房间同步起奏,各人界面显示自己的声部引导。
+        房间模式: 房主选曲 → 每人认领一个声部(互斥)→ 所有玩家「准备就绪」→ 房主开始倒计时,
+        全房间同步起奏。点已选的歌曲/声部可取消。
       </p>
         </>
       )}

@@ -10,6 +10,7 @@ function makeMember(id: string, name: string): { member: RoomMember; sent: Serve
     member: {
       id,
       name,
+      ready: false,
       send: (msg) => {
         sent.push(msg)
       },
@@ -26,11 +27,21 @@ describe('createRoom', () => {
     room.join(a.member)
     room.join(b.member)
 
-    expect(a.sent[0]).toEqual({ type: 'welcome', id: 'a', name: 'Alice', roomCode: 'TESTRO', bpm: 120, bpi: 4 })
-    expect(b.sent[0]).toEqual({ type: 'welcome', id: 'b', name: 'Bob', roomCode: 'TESTRO', bpm: 120, bpi: 4 })
-    expect(a.sent[1]).toEqual({ type: 'peerJoined', id: 'b', name: 'Bob' })
+    expect(a.sent[0]).toEqual({ type: 'welcome', id: 'a', name: 'Alice', roomCode: 'TESTRO', bpm: 120, bpi: 4, ownerId: 'a' })
+    expect(b.sent[0]).toEqual({ type: 'welcome', id: 'b', name: 'Bob', roomCode: 'TESTRO', bpm: 120, bpi: 4, ownerId: 'a' })
+    expect(a.sent.find((m) => m.type === 'peerJoined')).toEqual({
+      type: 'peerJoined',
+      id: 'b',
+      name: 'Bob',
+    })
     // 回填: 后加入者必须得知先加入的成员
-    expect(b.sent[1]).toEqual({ type: 'peerJoined', id: 'a', name: 'Alice' })
+    expect(b.sent.find((m) => m.type === 'peerJoined')).toEqual({
+      type: 'peerJoined',
+      id: 'a',
+      name: 'Alice',
+    })
+    // 新成员加入后会收到一次编排状态(房主/歌曲/成员列表)
+    expect(a.sent.some((m) => m.type === 'ensembleState')).toBe(true)
   })
 
   it('size() reflects the number of joined members', () => {
@@ -224,8 +235,13 @@ describe('createRoom', () => {
     room.leave('a')
 
     expect(room.size()).toBe(2)
-    expect(b.sent).toEqual([{ type: 'peerLeft', id: 'a' }])
-    expect(c.sent).toEqual([{ type: 'peerLeft', id: 'a' }])
+    expect(b.sent[0]).toEqual({ type: 'peerLeft', id: 'a' })
+    expect(c.sent[0]).toEqual({ type: 'peerLeft', id: 'a' })
+    // 房主 a 离开 → b 成为新房主,剩余成员收到编排状态广播(含新 ownerId)
+    const state = b.sent.find((m) => m.type === 'ensembleState') as
+      | { type: 'ensembleState'; ownerId: string }
+      | undefined
+    expect(state?.ownerId).toBe('b')
   })
 })
 
@@ -241,7 +257,14 @@ describe('startSong (房间同步开始)', () => {
     b.sent.length = 0
 
     t = 1300 // beat 2.6 → 边界 = ceil((2.6+4)/4)*4 = 8
-    room.startSong()
+    // 房主 a 选曲 + 认领 + 全员准备后开始
+    room.selectSong('a', 'rock')
+    room.selectPart('a', 'rock', 'drums')
+    room.setReady('a', true)
+    room.setReady('b', true)
+    a.sent.length = 0
+    b.sent.length = 0
+    expect(room.startSong('a')).toBe('ok')
 
     const expected = { type: 'songStart', beat: 8, bpi: 4 } as const
     expect(a.sent[0]).toEqual(expected)
@@ -256,7 +279,11 @@ describe('startSong (房间同步开始)', () => {
     a.sent.length = 0
 
     t = 2500 // beat 5.0
-    room.startSong()
+    room.selectSong('a', 'rock')
+    room.selectPart('a', 'rock', 'drums')
+    room.setReady('a', true)
+    a.sent.length = 0
+    room.startSong('a')
     const msg = a.sent[0] as { type: 'songStart'; beat: number }
     expect(msg.beat % 4).toBe(0)
   })
@@ -309,8 +336,121 @@ describe('startJam (自由合奏同步起奏)', () => {
   })
 })
 
-describe('房间合奏编排 (selectPart / setReady / 互斥)', () => {
-  it('认领声部成功并广播编排状态;同一声部被他人认领时拒绝', () => {
+describe('房间合奏编排 (selectSong / selectPart / setReady / 权限)', () => {
+  it('房主选曲广播 songSelected + ensembleState;非房主不能选曲', () => {
+    const room = createRoom(120, 4, () => 1000, 'TESTRO')
+    const a = makeMember('a', 'Alice')
+    const b = makeMember('b', 'Bob')
+    room.join(a.member) // a = 房主
+    room.join(b.member)
+    a.sent.length = 0
+    b.sent.length = 0
+
+    // 非房主选曲被拒
+    expect(room.selectSong('b', 'rock')).toBe('notOwner')
+    // 房主选曲 → 双方收到 songSelected + ensembleState(songId=rock)
+    expect(room.selectSong('a', 'rock')).toBe('ok')
+    const songMsg = a.sent.find((m) => m.type === 'songSelected') as
+      | { type: 'songSelected'; songId: string | null }
+      | undefined
+    expect(songMsg?.songId).toBe('rock')
+    const stateA = b.sent.find((m) => m.type === 'ensembleState') as
+      | { type: 'ensembleState'; songId: string | null; ownerId: string }
+      | undefined
+    expect(stateA?.songId).toBe('rock')
+    expect(stateA?.ownerId).toBe('a')
+  })
+
+  it('认领声部成功并广播;同一声部互斥;换歌清空认领', () => {
+    const room = createRoom(120, 4, () => 1000, 'TESTRO')
+    const a = makeMember('a', 'Alice')
+    const b = makeMember('b', 'Bob')
+    room.join(a.member)
+    room.join(b.member)
+    room.selectSong('a', 'rock')
+    a.sent.length = 0
+    b.sent.length = 0
+
+    expect(room.selectPart('a', 'rock', 'drums')).toBe('ok')
+    const stateA = a.sent.find((m) => m.type === 'ensembleState') as
+      | { type: 'ensembleState'; songId: string | null; parts: Array<{ partId: string; playerName: string }> }
+      | undefined
+    expect(stateA?.songId).toBe('rock')
+    expect(stateA?.parts).toContainEqual(
+      expect.objectContaining({ partId: 'drums', playerName: 'Alice' }),
+    )
+
+    // 房主未选定的歌不能认领
+    expect(room.selectPart('b', 'other', 'drums')).toBe('noSong')
+    // B 想选 drums → 被拒
+    expect(room.selectPart('b', 'rock', 'drums')).toBe('taken')
+    // B 选 bass → 成功
+    expect(room.selectPart('b', 'rock', 'bass')).toBe('ok')
+
+    // 房主换歌 → 全部旧认领清空
+    expect(room.selectSong('a', 'twinkle')).toBe('ok')
+    const state2 = b.sent.at(-1) as
+      | { type: 'ensembleState'; songId: string | null; parts: Array<{ partId: string }> }
+      | undefined
+    expect(state2?.songId).toBe('twinkle')
+    expect(state2?.parts.length).toBe(0)
+  })
+
+  it('取消选曲(selectSong null)与取消认领(selectPart null)', () => {
+    const room = createRoom(120, 4, () => 1000, 'TESTRO')
+    const a = makeMember('a', 'Alice')
+    room.join(a.member)
+    room.selectSong('a', 'rock')
+    expect(room.selectPart('a', 'rock', 'drums')).toBe('ok')
+
+    // 取消认领
+    expect(room.selectPart('a', 'rock', null)).toBe('ok')
+    const state1 = a.sent.at(-1) as
+      | { type: 'ensembleState'; parts: Array<{ partId: string }> }
+      | undefined
+    expect(state1?.parts.length).toBe(0)
+
+    // 取消选曲 → songSelected(null) + 编排清空
+    a.sent.length = 0
+    expect(room.selectSong('a', null)).toBe('ok')
+    const songMsg = a.sent.find((m) => m.type === 'songSelected') as
+      | { type: 'songSelected'; songId: string | null }
+      | undefined
+    expect(songMsg?.songId).toBeNull()
+  })
+
+  it('在线成员级准备: 不要求认领声部;全部 ready 后房主可开始,非房主/未全 ready 被拒', () => {
+    const room = createRoom(120, 4, () => 1000, 'TESTRO')
+    const a = makeMember('a', 'Alice')
+    const b = makeMember('b', 'Bob')
+    room.join(a.member)
+    room.join(b.member)
+    room.selectSong('a', 'rock')
+    room.selectPart('a', 'rock', 'drums')
+
+    // 未全部准备 → 房主也不能开始
+    expect(room.startSong('a')).toBe('notReady')
+    // 非房主不能开始
+    expect(room.startSong('b')).toBe('notOwner')
+    // 全部准备(含未认领声部的 b) → 房主开始成功
+    room.setReady('a', true)
+    room.setReady('b', true)
+    expect(room.startSong('a')).toBe('ok')
+    const startMsg = a.sent.find((m) => m.type === 'songStart')
+    expect(startMsg).toMatchObject({ type: 'songStart' })
+    // 成员准备状态在 ensembleState 的 members 里(不要求认领)
+    const states = a.sent.filter((m) => m.type === 'ensembleState') as Array<{
+      type: 'ensembleState'
+      members: Array<{ playerId: string; ready: boolean }>
+    }>
+    const last = states.at(-1)
+    expect(last?.members).toEqual([
+      expect.objectContaining({ playerId: 'a', ready: true }),
+      expect.objectContaining({ playerId: 'b', ready: true }),
+    ])
+  })
+
+  it('唯一在线成员可选曲;房主离开后房主转移给最早的成员', () => {
     const room = createRoom(120, 4, () => 1000, 'TESTRO')
     const a = makeMember('a', 'Alice')
     const b = makeMember('b', 'Bob')
@@ -319,58 +459,16 @@ describe('房间合奏编排 (selectPart / setReady / 互斥)', () => {
     a.sent.length = 0
     b.sent.length = 0
 
-    expect(room.selectPart('a', 'rock', 'drums')).toBe('ok')
-    // 双方都收到 ensembleState: drums 归 Alice
-    const stateA = a.sent.find((m) => m.type === 'ensembleState') as
-      | { type: 'ensembleState'; songId: string; parts: Array<{ partId: string; playerName: string }> }
-      | undefined
-    expect(stateA?.songId).toBe('rock')
-    expect(stateA?.parts).toContainEqual(
-      expect.objectContaining({ partId: 'drums', playerName: 'Alice' }),
-    )
-
-    // B 想选 drums → 被拒
-    expect(room.selectPart('b', 'rock', 'drums')).toBe('taken')
-    // B 选 bass → 成功
-    expect(room.selectPart('b', 'rock', 'bass')).toBe('ok')
-    // 换歌 = 房间换歌重排: 不是报错,而是切到新歌并释放旧认领
-    expect(room.selectPart('b', 'other', 'bass')).toBe('ok')
-    const state2 = b.sent.at(-1) as
-      | { type: 'ensembleState'; songId: string; parts: Array<{ partId: string }> }
-      | undefined
-    expect(state2?.songId).toBe('other')
-    expect(state2?.parts.map((p) => p.partId)).toEqual(['bass'])
-    // Alice 的旧认领(drums)已随换歌释放
-    expect(state2?.parts.some((p) => p.partId === 'drums')).toBe(false)
-  })
-
-  it('换声部: 释放旧认领', () => {
-    const room = createRoom(120, 4, () => 1000, 'TESTRO')
-    const a = makeMember('a', 'Alice')
-    room.join(a.member)
-    a.sent.length = 0
-    expect(room.selectPart('a', 'rock', 'drums')).toBe('ok')
-    expect(room.selectPart('a', 'rock', 'keys')).toBe('ok')
-    const state = a.sent.at(-1) as
-      | { type: 'ensembleState'; parts: Array<{ partId: string }> }
-      | undefined
-    expect(state?.parts.map((p) => p.partId)).toEqual(['keys'])
-  })
-
-  it('setReady 更新准备状态并广播;未认领声部的成员忽略', () => {
-    const room = createRoom(120, 4, () => 1000, 'TESTRO')
-    const a = makeMember('a', 'Alice')
-    room.join(a.member)
-    a.sent.length = 0
-    room.selectPart('a', 'rock', 'drums')
-    a.sent.length = 0
-    room.setReady('a', true)
-    const state = a.sent.at(-1) as
-      | { type: 'ensembleState'; parts: Array<{ ready: boolean }> }
-      | undefined
-    expect(state?.parts[0]?.ready).toBe(true)
-    // 未认领者准备无效
-    room.setReady('ghost', true) // 不抛错
+    // 两人都在时只有房主 a 能选曲
+    expect(room.selectSong('b', 'rock')).toBe('notOwner')
+    // 房主 a 离开 → b 成为房主(转移),b 现在能选曲
+    room.leave('a')
+    expect(room.ownerId).toBe('b')
+    expect(room.selectSong('b', 'rock')).toBe('ok')
+    expect(room.startSong('b')).toBe('notReady') // 还需准备
+    room.setReady('b', true)
+    room.selectPart('b', 'rock', 'drums')
+    expect(room.startSong('b')).toBe('ok')
   })
 
   it('离开房间释放声部认领', () => {
@@ -379,14 +477,17 @@ describe('房间合奏编排 (selectPart / setReady / 互斥)', () => {
     const b = makeMember('b', 'Bob')
     room.join(a.member)
     room.join(b.member)
+    room.selectSong('a', 'rock')
     room.selectPart('a', 'rock', 'drums')
     b.sent.length = 0
     room.leave('a')
     const state = b.sent.find((m) => m.type === 'ensembleState') as
-      | { type: 'ensembleState'; parts: Array<{ partId: string }> }
+      | { type: 'ensembleState'; parts: Array<{ partId: string }>; ownerId: string }
       | undefined
-    // A 离开后 drums 释放;若还有其他人认领则广播更新
+    // A 离开后 drums 释放;b 成为新房主
+    expect(state?.parts.length).toBe(0)
+    expect(state?.ownerId).toBe('b')
+    // b 现在可以重新认领
     expect(room.selectPart('b', 'rock', 'drums')).toBe('ok')
-    expect(state).toBeUndefined() // A 离开后没有其他认领 → 编排清空,不再广播
   })
 })

@@ -23,6 +23,7 @@ type SyncAckMsg = Extract<ServerMsg, { type: 'syncAck' }>
 type SongStartMsg = Extract<ServerMsg, { type: 'songStart' }>
 type JamStartMsg = Extract<ServerMsg, { type: 'jamStart' }>
 type EnsembleStateMsg = Extract<ServerMsg, { type: 'ensembleState' }>
+type SongSelectedMsg = Extract<ServerMsg, { type: 'songSelected' }>
 type PartErrorMsg = Extract<ServerMsg, { type: 'partError' }>
 
 /** 加入房间的意图: 创建新房间或凭码加入已有房间。断线重连后按此意图重新加入。 */
@@ -43,6 +44,7 @@ export interface WsHandlers {
   onSongStart(msg: SongStartMsg): void
   onJamStart(msg: JamStartMsg): void
   onEnsembleState(msg: EnsembleStateMsg): void
+  onSongSelected(msg: SongSelectedMsg): void
   onPartError(msg: PartErrorMsg): void
 }
 
@@ -124,8 +126,13 @@ export class WsClient {
     this.send({ type: 'startJam', bars, pickup })
   }
 
-  /** 认领某首歌的某个声部(房间级互斥)。 */
-  sendSelectPart(songId: string, partId: string): void {
+  /** 房主(或唯一在线成员)选定/取消房间曲目(null=取消)。 */
+  sendSelectSong(songId: string | null): void {
+    this.send({ type: 'selectSong', songId })
+  }
+
+  /** 认领/取消认领某首歌的某个声部(partId=null 取消;房间级互斥)。 */
+  sendSelectPart(songId: string, partId: string | null): void {
     this.send({ type: 'selectPart', songId, partId })
   }
 
@@ -277,6 +284,9 @@ export class WsClient {
         break
       case 'ensembleState':
         this.handlers.onEnsembleState(parsed as EnsembleStateMsg)
+        break
+      case 'songSelected':
+        this.handlers.onSongSelected(parsed as SongSelectedMsg)
         break
       case 'partError':
         this.handlers.onPartError(parsed as PartErrorMsg)

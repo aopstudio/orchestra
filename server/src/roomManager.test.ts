@@ -4,7 +4,7 @@ import type { RoomMember } from './room'
 import type { ServerMsg } from '@orchestra/shared'
 
 function makeMember(id: string, name: string, log: ServerMsg[] = []): RoomMember {
-  return { id, name, send: (msg) => log.push(msg) }
+  return { id, name, ready: false, send: (msg) => log.push(msg) }
 }
 
 /** 真实短定时器: 用尽量小的回收时长 + 等待。 */

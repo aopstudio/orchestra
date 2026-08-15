@@ -72,12 +72,18 @@ export interface HandlerDeps {
   songsRef: MutableRefObject<Song[]>
   setSelectedSong: Dispatch<SetStateAction<Song | null>>
   setSelectedPart: Dispatch<SetStateAction<SongPart | null>>
-  /** 房间合奏编排状态(声部认领/准备)。 */
+  /** 房主(选曲/开始权限)玩家 id。 */
+  setOwnerId: Dispatch<SetStateAction<string | null>>
+  /** 我是否已准备(本地乐观)。 */
+  setMyReady: Dispatch<SetStateAction<boolean>>
+  /** 房间合奏编排状态(歌曲/房主/声部认领/成员准备)。 */
   setEnsembleState: Dispatch<
     SetStateAction<{
-      songId: string
+      songId: string | null
       bpi: number
+      ownerId: string
       parts: Array<{ partId: string; playerId: string; playerName: string; ready: boolean }>
+      members: Array<{ playerId: string; playerName: string; ready: boolean }>
     } | null>
   >
 }
@@ -139,6 +145,8 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
     songsRef,
     setSelectedSong,
     setSelectedPart,
+    setOwnerId,
+    setMyReady,
     setEnsembleState,
   } = deps
 
@@ -158,6 +166,8 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
       // A welcome means a fresh room session — start the peer roster over.
       setPeers([])
       setError(null)
+      // 房主(选曲/开始权限): welcome 下发,重连后刷新
+      setOwnerId(msg.ownerId)
       // 重新加入后重置自由合奏状态
       jamUntilRef.current = null
       setJamCountdown(null)
@@ -406,7 +416,17 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
     },
 
     onEnsembleState: (msg) => {
-      setEnsembleState({ songId: msg.songId, bpi: msg.bpi, parts: msg.parts })
+      setEnsembleState({
+        songId: msg.songId,
+        bpi: msg.bpi,
+        ownerId: msg.ownerId,
+        parts: msg.parts,
+        members: msg.members,
+      })
+      setOwnerId(msg.ownerId)
+      // 我的成员准备状态(服务器权威)回填本地乐观值
+      const myMember = msg.members.find((m) => m.playerId === myIdRef.current)
+      setMyReady(myMember?.ready ?? false)
       // 采纳我认领的声部: 选中的声部成为我的演奏声部,界面引导跟随。
       // 倒计时不在此启动 —— 只由房间「开始倒计时」按钮(songStart)统一触发。
       const myClaim = msg.parts.find((p) => p.playerId === myIdRef.current)
@@ -430,6 +450,28 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
       // 创建该声部的判定器(引导/计分管线),倒计时由「开始」按钮统一触发
       judgeRef.current = new Judge(part.notes, { enabled: judgeEnabledRef.current })
       setJudgeStats(judgeRef.current.stats())
+      setJudgeBadge(null)
+    },
+
+    onSongSelected: (msg) => {
+      // 房主选定/取消曲目 → 全房间同步: 高亮同一首歌、清空声部/引导/判定,
+      // 为新一轮认领做准备(换歌 = 重新编排)。
+      const song =
+        msg.songId === null
+          ? null
+          : (songsRef.current.find((s) => s.id === msg.songId) ?? null)
+      setSelectedSong(song)
+      setSelectedPart(null)
+      selectedPartRef.current = null
+      judgeRef.current = null
+      countdownUntilRef.current = null
+      setCountdownBeatsLeft(null)
+      setPrepBeats(0)
+      setGuideCurrent(new Set())
+      setGuideUpcoming(new Set())
+      setGuideProgress(0)
+      setSongBeatState(null)
+      setJudgeStats({ hits: 0, misses: 0, mistakes: 0, score: 0 })
       setJudgeBadge(null)
     },
 

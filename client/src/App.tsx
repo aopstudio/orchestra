@@ -207,13 +207,17 @@ export default function App() {
   const [jamActive, setJamActive] = useState(false)
   /** 预备小节数(1-4,发起方设置)。 */
   const [jamBars, setJamBars] = useState(2)
-  /** 房间合奏编排状态(声部认领/准备,服务器广播)。 */
+  /** 房间合奏编排状态(房主/歌曲/声部认领/成员准备,服务器广播)。 */
   const [ensembleState, setEnsembleState] = useState<{
-    songId: string
+    songId: string | null
     bpi: number
+    ownerId: string
     parts: Array<{ partId: string; playerId: string; playerName: string; ready: boolean }>
+    members: Array<{ playerId: string; playerName: string; ready: boolean }>
   } | null>(null)
-  /** 我是否已准备(本地发起)。 */
+  /** 房主(房间创建者)玩家 id —— 选曲/开始的权限归属。 */
+  const [ownerId, setOwnerId] = useState<string | null>(null)
+  /** 我是否已准备(本地发起,服务器权威回填)。 */
   const [myReady, setMyReady] = useState(false)
   /** 弱起(pickup)开关: false=小节开始(强拍), true=弱起(边界前一拍)。 */
   const [jamPickup, setJamPickup] = useState(false)
@@ -524,6 +528,8 @@ export default function App() {
       setJamBeatsLeft,
       setJamActive,
       setEnsembleState,
+      setOwnerId,
+      setMyReady,
       myIdRef,
       songsRef,
       setSelectedSong,
@@ -831,16 +837,21 @@ export default function App() {
     localStorage.setItem('orch.guideMode', mode)
   }
 
-  /** 请求房间同步开始: 所有已武装玩家在同一小节边界起奏(Phase 1 合奏)。 */
+  /** 请求房间同步开始: 所有在线玩家准备后,由房主统一开始(服务器校验权限)。 */
   const handleSyncStart = (): void => {
     wsRef.current?.sendStartSong()
   }
 
-  /** 编排开始条件: 有人认领声部且所有认领者都已准备。 */
+  /** 我是否为房主(选曲/开始按钮的权限)。 */
+  const isOwner = myId !== null && myId === ownerId
+  /** 选曲权: 房主,或当前房间唯一在线玩家(房主不在时)。 */
+  const canSelectSong = isOwner || peers.length === 0
+  /** 编排开始条件: 我是房主,有认领的声部,且所有在线玩家都已准备。 */
   const canStartEnsemble =
     ensembleState !== null &&
+    ensembleState.ownerId === myId &&
     ensembleState.parts.length > 0 &&
-    ensembleState.parts.every((p) => p.ready)
+    ensembleState.members.every((m) => m.ready)
 
   /** 发起自由合奏同步起奏(bars 预备小节后,可选弱起)。 */
   const handleJamStart = (): void => {
@@ -1034,39 +1045,51 @@ export default function App() {
     songsRef.current = [...SONGS, ...customSongs]
   }, [customSongs])
 
-  /** Pick a song: clears the armed part and applies the song's tempo room-wide. */
+  /**
+   * 选曲(房主/唯一在线玩家): 点一下选曲、再点一下取消。
+   * 房间级 —— 通过服务器广播 songSelected,全房间同步高亮同一首歌。
+   * 本地先乐观高亮(广播幂等回填);tempo 由房间共享,无需逐端改。
+   */
   const handleSelectSong = (songId: string): void => {
-    // 内置 + 自定义曲库中查找
-    const allSongs = [...SONGS, ...customSongs]
-    const song = allSongs.find((s) => s.id === songId) ?? null
-    setSelectedSong(song)
-    setSelectedPart(null)
-    selectedPartRef.current = null
-    // Selecting a song drives the whole room to its (customizable) default tempo.
-    if (song !== null) {
-      handleTempoChange(effectiveSongBpm(song))
+    if (!canSelectSong) return
+    // 已选中的歌再点一下 = 取消选曲
+    const next = selectedSong?.id === songId ? null : songId
+    if (next === null) {
+      setSelectedSong(null)
+      setSelectedPart(null)
+      selectedPartRef.current = null
+      judgeRef.current = null
+    } else {
+      // 本地乐观高亮(服务器 songSelected 广播会幂等回填)
+      const song = [...SONGS, ...customSongs].find((s) => s.id === next) ?? null
+      setSelectedSong(song)
+      setSelectedPart(null)
+      selectedPartRef.current = null
+      judgeRef.current = null
+      // 选曲驱动全房间 tempo(房间共享,服务器广播时钟)
+      if (song !== null) {
+        handleTempoChange(effectiveSongBpm(song))
+      }
     }
-    // The next part pick re-anchors the song start at the then-current beat.
-    songStartBeatRef.current = null
-    countdownUntilRef.current = null
-    setCountdownBeatsLeft(null)
-    setPrepBeats(0)
-    judgeRef.current = null
-    setGuideCurrent(new Set())
-    setGuideUpcoming(new Set())
-    setGuideProgress(0)
-    setSongBeatState(null)
-    setJudgeStats({ hits: 0, misses: 0, mistakes: 0, score: 0 })
-    setJudgeBadge(null)
+    wsRef.current?.sendSelectSong(next)
   }
 
-  /** Arm a part: start a COUNTDOWN, then the song begins (t=0 = armBeat + countdown). */
+  /** 认领/取消认领声部(歌曲由房主选定后,所有在线玩家可认领;互斥)。 */
   const handleSelectPart = (partId: string): void => {
-    // 房间级声部认领: 通过服务器广播,同一声部互斥。
-    // 认领成功后由 onEnsembleState 采纳为我的声部;倒计时只由「开始」按钮统一触发。
     if (selectedSong === null) return
     const part = selectedSong.parts.find((p) => p.id === partId) ?? null
     if (part === null) return
+    // 点已认领的声部 = 取消认领
+    const isMine = ensembleState?.parts.some(
+      (p) => p.partId === partId && p.playerId === myId,
+    )
+    if (isMine) {
+      setSelectedPart(null)
+      selectedPartRef.current = null
+      judgeRef.current = null
+      wsRef.current?.sendSelectPart(selectedSong.id, null)
+      return
+    }
     // 本地先乐观显示(最终以服务器广播为准)
     setSelectedPart(part)
     selectedPartRef.current = part
@@ -1378,6 +1401,8 @@ export default function App() {
             selectedPartId={selectedPart?.id ?? null}
             onSelectPart={handleSelectPart}
             enabled={connState === 'connected'}
+            canSelectSong={canSelectSong}
+            isOwner={isOwner}
             progress={guideProgress}
             judgeEnabled={judgeEnabled}
             onToggleJudge={handleToggleJudge}

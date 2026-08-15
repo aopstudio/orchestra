@@ -685,7 +685,7 @@ test('cross-city simulation: 60ms one-way relay still syncs the clock and relays
 test('three players claim distinct parts, ready up, and start rock-groove together (exclusive parts)', async ({
   browser,
 }) => {
-  // 3 人进同一房间,每人认领不同声部(鼓/贝斯/键盘);第 4 人认领被占声部应被拒
+  // 3 人进同一房间: 房主选曲,每人认领不同声部(鼓/贝斯/键盘);第 4 人认领被占声部应被拒
   const ctxs = []
   const pages: Page[] = []
   for (let i = 0; i < 4; i += 1) {
@@ -700,8 +700,19 @@ test('three players claim distinct parts, ready up, and start rock-groove togeth
   for (const p of pages) {
     await waitInstrumentsReady(p!)
     await p!.getByTestId('guide-mode-highlight').click()
-    await p!.getByTestId('song-rock-groove').click()
   }
+
+  // 仅房主(P0)选曲;其他玩家的曲目菜单同步高亮同一首歌且不可自行选曲
+  await pages[0]!.getByTestId('song-rock-groove').click()
+  for (const p of pages.slice(1)) {
+    await expect(p!.getByTestId('song-rock-groove')).toHaveAttribute('aria-pressed', 'true', {
+      timeout: 10_000,
+    })
+    await expect(p!.getByTestId('song-rock-groove')).toBeDisabled()
+    await expect(p!.getByTestId('song-pick-locked')).toBeVisible()
+  }
+  console.log('[e2e] ensemble: host picks song, guests see it synced and cannot pick')
+
   const parts = ['drums', 'bass', 'keys']
   for (let i = 0; i < 3; i += 1) {
     await pages[i]!.getByTestId(`part-rock-groove-${parts[i]}`).click()
@@ -720,13 +731,17 @@ test('three players claim distinct parts, ready up, and start rock-groove togeth
   }
   console.log('[e2e] ensemble: part exclusivity enforced (taken part disabled for others)')
 
-  // 未全部准备时「开始倒计时」不可用
+  // 「开始倒计时」按钮仅房主可见;未全部准备时禁用
   await expect(pages[0]!.getByTestId('sync-start-btn')).toBeDisabled()
+  for (const p of pages.slice(1)) {
+    await expect(p!.getByTestId('sync-start-btn')).toHaveCount(0)
+  }
 
-  // 三人准备就绪 → 开始倒计时
-  for (let i = 0; i < 3; i += 1) {
+  // 所有在线玩家(含未认领声部的第 4 人)准备就绪 → 房主开始倒计时
+  for (let i = 0; i < 4; i += 1) {
     await pages[i]!.getByTestId('ready-btn').click()
   }
+  await expect(pages[0]!.getByTestId('sync-start-btn')).toBeEnabled({ timeout: 10_000 })
   await pages[0]!.getByTestId('sync-start-btn').click()
   for (const p of pages.slice(0, 3)) {
     await expect(p!.getByTestId('songbook-countdown')).toBeVisible({ timeout: 10_000 })
@@ -744,11 +759,58 @@ test('three players claim distinct parts, ready up, and start rock-groove togeth
       .toBeGreaterThan(0)
     await expect(p.getByTestId('songbook-countdown')).toHaveCount(0)
   }
-  console.log('[e2e] ensemble: all 4 guides started after sync-start')
+  console.log('[e2e] ensemble: all 3 guides started after host sync-start')
 
   for (const ctx of ctxs) {
     await ctx.close()
   }
+})
+
+test('room song pick is host-only, synced to guests, and cancelable (song + part)', async ({
+  browser,
+}) => {
+  const ctxA = await browser.newContext()
+  const pageA = await ctxA.newPage()
+  const roomCode = await createRoom(pageA, 'PickHost')
+  const ctxB = await browser.newContext()
+  const pageB = await ctxB.newPage()
+  await joinRoom(pageB, 'PickGuest', roomCode)
+  await waitInstrumentsReady(pageB)
+  await waitInstrumentsReady(pageA)
+  await pageB.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
+
+  // 客人不能选曲(提示 + 歌单禁用)
+  await expect(pageB.getByTestId('song-pick-locked')).toBeVisible()
+  await expect(pageB.getByTestId('song-twinkle')).toBeDisabled()
+
+  // 房主选 twinkle → 客人曲库同步高亮
+  await pageA.getByTestId('song-twinkle').click()
+  await expect(pageB.getByTestId('song-twinkle')).toHaveAttribute('aria-pressed', 'true', {
+    timeout: 10_000,
+  })
+
+  // 客人认领旋律声部(认领权在所有玩家)
+  await pageB.getByTestId('part-twinkle-melody').click()
+  await expect(pageB.getByTestId('part-twinkle-melody')).toContainText('我', { timeout: 10_000 })
+  await expect(pageA.getByTestId('part-twinkle-melody')).toContainText('Guest', {
+    timeout: 10_000,
+  })
+
+  // 客人点已认领声部 → 取消认领(双方界面回到未认领)
+  await pageB.getByTestId('part-twinkle-melody').click()
+  await expect(pageB.getByTestId('part-twinkle-melody')).not.toContainText('我', {
+    timeout: 10_000,
+  })
+
+  // 房主再点已选的歌 → 取消选曲(客人曲库同步取消高亮)
+  await pageA.getByTestId('song-twinkle').click()
+  await expect(pageB.getByTestId('song-twinkle')).toHaveAttribute('aria-pressed', 'false', {
+    timeout: 10_000,
+  })
+  console.log('[e2e] song pick: host-only, synced, and both cancel flows work')
+
+  await ctxA.close()
+  await ctxB.close()
 })
 
 test('instrument picker: free-jam timbre selection is heard by remote players', async ({
@@ -780,7 +842,11 @@ test('instrument picker: free-jam timbre selection is heard by remote players', 
   console.log(`[e2e] instrument picker: remote heard '${heard}'`)
 
   // 武装声部后选择器锁定并跟随声部乐器(小星星旋律 = 钢琴)
-  await pageB.getByTestId('song-twinkle').click()
+  // 房主 A 选曲,B(客人)认领旋律声部
+  await pageA.getByTestId('song-twinkle').click()
+  await expect(pageB.getByTestId('song-twinkle')).toHaveAttribute('aria-pressed', 'true', {
+    timeout: 10_000,
+  })
   await pageB.getByTestId('part-twinkle-melody').click()
   await expect(pageB.getByTestId('instrument-piano')).toHaveAttribute('aria-pressed', 'true')
   await expect(pageB.getByTestId('instrument-hint')).toContainText('锁定')
