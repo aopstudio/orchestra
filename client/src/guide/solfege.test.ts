@@ -51,4 +51,18 @@ describe('midiToTickerLabel', () => {
     expect(midiToTickerLabel(64)).toBe('3')
     expect(midiToTickerLabel(62)).toBe('2')
   })
+
+  it('marks black keys with a sharp (升降记号)', () => {
+    expect(midiToTickerLabel(61)).toBe('#1') // C#4
+    expect(midiToTickerLabel(63)).toBe('#2') // D#4
+    expect(midiToTickerLabel(66)).toBe('#4') // F#4
+    expect(midiToTickerLabel(68)).toBe('#5') // G#4
+    expect(midiToTickerLabel(70)).toBe('#6') // A#4
+    // 升降与八度点叠加: F#5 → #4'
+    expect(midiToTickerLabel(78)).toBe("#4'")
+    // 卡农低音线的 F#3 → #4,
+    expect(midiToTickerLabel(54)).toBe('#4,')
+    // 布鲁斯降三级(Eb4 = D#4) → #2
+    expect(midiToTickerLabel(63)).toBe('#2')
+  })
 })

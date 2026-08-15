@@ -26,6 +26,9 @@ const PC_TO_DEGREE: Readonly<Record<number, number>> = {
   11: 6, // B
 }
 
+/** 黑键 pitch class(升降音): C# D# F# G# A# → 1,2,4,5,6 的升号。 */
+const BLACK_PCS: ReadonlySet<number> = new Set([1, 3, 6, 8, 10])
+
 /** MIDI 音高 → 简谱数字(1..7,1=do) */
 export function midiToNumber(note: number): number {
   return (PC_TO_DEGREE[note % 12] ?? 0) + 1
@@ -42,11 +45,17 @@ export function midiToSolfege(note: number): string {
   return degree >= 1 && degree <= 7 ? String(degree) : '?'
 }
 
-/** MIDI 音高 → 带八度标记的简谱文本(C4→'1', C5→"1'", C3→'1,') */
+/**
+ * MIDI 音高 → 带八度标记与升降记号的简谱文本。
+ * 黑键显示升号: C#4→'#1', D#4→'#2', F#4→'#4', G#4→'#5', A#4→'#6'。
+ * 高八度在数字上方加点 → 文本中用 `1'` 表示;低八度用 `1,` 表示。
+ */
 export function midiToTickerLabel(note: number): string {
   const num = midiToSolfege(note)
+  const accidental = BLACK_PCS.has(note % 12) ? '#' : ''
+  const body = `${accidental}${num}`
   const shift = octaveShift(note)
-  if (shift > 0) return `${num}${"'".repeat(shift)}`
-  if (shift < 0) return `${num}${','.repeat(-shift)}`
-  return num
+  if (shift > 0) return `${body}${"'".repeat(shift)}`
+  if (shift < 0) return `${body}${','.repeat(-shift)}`
+  return body
 }
