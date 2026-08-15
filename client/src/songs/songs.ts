@@ -367,14 +367,14 @@ const FRERE_JACQUES: Song = {
         { note: 60, beat: 4 }, { note: 62, beat: 5 }, { note: 64, beat: 6 }, { note: 60, beat: 7 },
         { note: 64, beat: 8 }, { note: 65, beat: 9 }, { note: 67, beat: 10, duration: 2 },
         { note: 64, beat: 12 }, { note: 65, beat: 13 }, { note: 67, beat: 14, duration: 2 },
-        // 5 6 5 4 3 1 | 5 6 5 4 3 1
-        { note: 69, beat: 16 }, { note: 67, beat: 17 }, { note: 65, beat: 18 }, { note: 64, beat: 19 },
+        // 标准谱: 5 6 5 4 3 1(两次)
+        { note: 67, beat: 16 }, { note: 69, beat: 17 }, { note: 67, beat: 18 }, { note: 65, beat: 19 },
         { note: 64, beat: 20 }, { note: 60, beat: 21 },
-        { note: 69, beat: 22 }, { note: 67, beat: 23 }, { note: 65, beat: 24 }, { note: 64, beat: 25 },
+        { note: 67, beat: 22 }, { note: 69, beat: 23 }, { note: 67, beat: 24 }, { note: 65, beat: 25 },
         { note: 64, beat: 26 }, { note: 60, beat: 27 },
-        // 2 5 1- | 2 5 1-
-        { note: 62, beat: 28 }, { note: 55, beat: 29 }, { note: 60, beat: 30, duration: 2 },
-        { note: 62, beat: 32 }, { note: 55, beat: 33 }, { note: 60, beat: 34, duration: 2 },
+        // 标准谱: 2 5 1-(5 = G4)
+        { note: 62, beat: 28 }, { note: 67, beat: 29 }, { note: 60, beat: 30, duration: 2 },
+        { note: 62, beat: 32 }, { note: 67, beat: 33 }, { note: 60, beat: 34, duration: 2 },
       ],
     },
     {
@@ -640,17 +640,18 @@ const JINGLE_BELLS: Song = {
         { note: 64, beat: 4 }, { note: 64, beat: 5 }, { note: 64, beat: 6 },
         { note: 64, beat: 8 }, { note: 67, beat: 9 }, { note: 72, beat: 10 }, { note: 74, beat: 11 },
         { note: 76, beat: 12, duration: 2 },
-        { note: 77, beat: 16 }, { note: 77, beat: 17 }, { note: 77, beat: 18 }, { note: 77, beat: 19 },
-        { note: 77, beat: 20 }, { note: 76, beat: 21 }, { note: 76, beat: 22 }, { note: 76, beat: 23 },
-        { note: 76, beat: 24 }, { note: 74, beat: 25 }, { note: 74, beat: 26 }, { note: 76, beat: 27 },
+        // 副歌标准谱: 4 4 4 4 | 4 3 3 3 | 3 2 2 3 (4=F 中音)
+        { note: 65, beat: 16 }, { note: 65, beat: 17 }, { note: 65, beat: 18 }, { note: 65, beat: 19 },
+        { note: 65, beat: 20 }, { note: 64, beat: 21 }, { note: 64, beat: 22 }, { note: 64, beat: 23 },
+        { note: 64, beat: 24 }, { note: 62, beat: 25 }, { note: 62, beat: 26 }, { note: 64, beat: 27 },
         { note: 74, beat: 28, duration: 2 }, { note: 67, beat: 30, duration: 2 },
         // A' 段 (m9-m16)
         { note: 64, beat: 32 }, { note: 64, beat: 33 }, { note: 64, beat: 34 },
         { note: 64, beat: 36 }, { note: 64, beat: 37 }, { note: 64, beat: 38 },
         { note: 64, beat: 40 }, { note: 67, beat: 41 }, { note: 72, beat: 42 }, { note: 74, beat: 43 },
         { note: 76, beat: 44, duration: 2 },
-        { note: 77, beat: 48 }, { note: 77, beat: 49 }, { note: 77, beat: 50 }, { note: 77, beat: 51 },
-        { note: 77, beat: 52 }, { note: 76, beat: 53 }, { note: 76, beat: 54 }, { note: 76, beat: 55 },
+        { note: 65, beat: 48 }, { note: 65, beat: 49 }, { note: 65, beat: 50 }, { note: 65, beat: 51 },
+        { note: 65, beat: 52 }, { note: 64, beat: 53 }, { note: 64, beat: 54 }, { note: 64, beat: 55 },
         { note: 67, beat: 56 }, { note: 67, beat: 57 }, { note: 65, beat: 58 }, { note: 62, beat: 59 },
         { note: 60, beat: 60, duration: 4 },
       ],
