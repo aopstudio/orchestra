@@ -61,6 +61,8 @@ async function createRoom(page: Page, name: string): Promise<string> {
   await expect(page.getByTestId('room-code-callout')).toBeVisible()
   await expect(page.getByTestId('room-code-value')).toHaveText(code ?? '')
   await expect(page.getByTestId('copy-room-code')).toBeVisible()
+  // 曲库面板默认折叠: 测试从这里统一展开(选歌/认领/开始都在这面板里)
+  await page.getByTestId('song-panel-toggle').click()
   return code ?? ''
 }
 
@@ -70,6 +72,8 @@ async function joinRoom(page: Page, name: string, code: string): Promise<void> {
   await page.getByTestId('room-code-input').fill(code)
   await page.getByTestId('join-btn').click()
   await expect(page.getByTestId('conn-badge')).toHaveText('CONNECTED', { timeout: 20_000 })
+  // 曲库面板默认折叠: 展开,供认领声部等操作
+  await page.getByTestId('song-panel-toggle').click()
 }
 
 /** Wait until the instrument pipeline exists (see SMPLR_CDN note). */

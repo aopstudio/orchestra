@@ -11,6 +11,7 @@
  * even though the pick itself is not broadcast. Room song sync ships later.
  */
 
+import { useEffect, useState } from 'react'
 import type { Song } from '../songs/songs'
 import type { JudgeStats } from '../guide/judge'
 
@@ -97,6 +98,11 @@ export default function SongPicker({
 }: SongPickerProps) {
   const selectedSong = songs.find((s) => s.id === selectedSongId) ?? null
   const armed = selectedPartId !== null
+  // 与自由合奏/速度面板一致: 可折叠,默认收起(演奏时腾出视线),状态持久化。
+  const [open, setOpen] = useState(() => localStorage.getItem('orch.panel.songbook') === '1')
+  useEffect(() => {
+    localStorage.setItem('orch.panel.songbook', open ? '1' : '0')
+  }, [open])
   const progressPct = Math.max(0, Math.min(100, Math.round(progress * 100)))
   const selectedBpm =
     selectedSong !== null ? (songBpmOverrides[selectedSong.id] ?? selectedSong.bpm) : null
@@ -109,7 +115,20 @@ export default function SongPicker({
   return (
     <section className="panel songbook-panel">
       <h2 className="panel-title">
-        <span>Songbook · 曲库</span>
+        <button
+          type="button"
+          className="panel-title-toggle"
+          data-testid="song-panel-toggle"
+          aria-expanded={open}
+          onClick={() => setOpen(!open)}
+        >
+          <span className="panel-chevron">▶</span>
+          <span>Songbook · 曲库</span>
+          {selectedSong !== null && <span className="songbook-current">{selectedSong.title}</span>}
+          {(armed || (countdownBeatsLeft ?? 0) > 0) && (
+            <span className="panel-title-dot" data-testid="song-panel-status" />
+          )}
+        </button>
         {armed ? (
           <span className="songbook-armed">
             <span className="dot" />
@@ -120,7 +139,9 @@ export default function SongPicker({
         )}
       </h2>
 
-      <div className="songbook-list" role="radiogroup" aria-label="Songs">
+      {open && (
+        <>
+          <div className="songbook-list" role="radiogroup" aria-label="Songs">
         {songs.map((song) => {
           const active = song.id === selectedSongId
           return (
@@ -322,6 +343,8 @@ export default function SongPicker({
         多人合奏: 每人认领一个声部(同一声部互斥),全部「准备就绪」后点「开始倒计时」,
         全房间同步起奏,各人界面显示自己的声部引导。
       </p>
+        </>
+      )}
     </section>
   )
 }

@@ -226,6 +226,17 @@ button {
   flex: none;
 }
 
+/* 折叠的曲库标题行: 显示当前选中歌名,收起后仍知道选了哪首 */
+.songbook-current {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--amber);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 140px;
+}
+
 /* L-shaped corner brackets, like a scope readout frame */
 .panel::before,
 .panel::after {
