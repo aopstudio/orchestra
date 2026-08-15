@@ -2229,17 +2229,14 @@ button {
   min-width: 0;
 }
 
-/* PerformanceCountdown — 键盘正上方的同步起奏倒计时(演奏者余光可见)。 */
+/* PerformanceCountdown — 键盘/流动谱下方的同步起奏倒计时(文档流,不遮挡演奏区)。 */
 .perf-countdown {
-  position: absolute;
-  top: var(--s-4);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
+  margin: var(--s-4) auto 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 3px;
+  width: fit-content;
   padding: var(--s-2) var(--s-6) var(--s-3);
   border: 1px solid rgba(255, 180, 84, 0.55);
   border-radius: 6px;
@@ -2247,7 +2244,6 @@ button {
   box-shadow:
     0 12px 40px rgba(0, 0, 0, 0.55),
     0 0 24px rgba(255, 180, 84, 0.22);
-  pointer-events: none;
   user-select: none;
   animation: callout-in 0.25s ease;
 }

@@ -1349,13 +1349,6 @@ export default function App() {
 
         <div className="pad-zone">
           <JudgeBadge badge={judgeBadge} />
-          <PerformanceCountdown
-            jamCountdown={jamCountdown}
-            jamBeatsLeft={jamBeatsLeft}
-            jamActive={jamActive}
-            countdownBeatsLeft={countdownBeatsLeft}
-            songBeat={songBeatState}
-          />
           {selectedPart === null && jamInstrument === 'drums' ? (
             // 自由合奏 + 鼓音色: 键盘只映射鼓件,钢琴键在这里没有意义——
             // 直接显示全部 GM 鼓垫(带键位提示),新手一眼看到该按哪
@@ -1402,6 +1395,14 @@ export default function App() {
               ) : null}
             </>
           )}
+          {/* 倒计时放在键盘/流动谱**下方**的文档流里,不遮挡任何演奏区域 */}
+          <PerformanceCountdown
+            jamCountdown={jamCountdown}
+            jamBeatsLeft={jamBeatsLeft}
+            jamActive={jamActive}
+            countdownBeatsLeft={countdownBeatsLeft}
+            songBeat={songBeatState}
+          />
           {showScore && selectedSong !== null && (
             <ScoreView
               song={selectedSong}

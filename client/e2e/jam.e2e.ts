@@ -717,6 +717,15 @@ test('jam sync: two players start a free jam together after a custom lead-in (ba
   // 同一 evaluate 内读取面板与演奏区两个读数,保证同一渲染快照(数值随时钟递减)。
   await expect(pageA.getByTestId('perf-countdown')).toBeVisible({ timeout: 10_000 })
   await expect(pageB.getByTestId('perf-countdown')).toBeVisible({ timeout: 10_000 })
+
+  // 布局: 倒计时在键盘**下方**的文档流里,绝不能遮挡键盘
+  const kbBox = await pageB.locator('.kbd-panel').boundingBox()
+  const cdBox = await pageB.getByTestId('perf-countdown').boundingBox()
+  expect(kbBox).not.toBeNull()
+  expect(cdBox).not.toBeNull()
+  expect(cdBox!.y).toBeGreaterThanOrEqual(kbBox!.y + kbBox!.height - 1)
+  console.log('[e2e] jam sync: countdown sits below the keyboard (no overlap)')
+
   const bothA = await pageA.evaluate(() => ({
     panel: document.querySelector('[data-testid="jam-beats-left"]')?.textContent ?? null,
     perf: document.querySelector('[data-testid="perf-countdown-value"]')?.textContent ?? null,
