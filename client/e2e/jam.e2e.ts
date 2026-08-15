@@ -853,8 +853,8 @@ test('free-jam drums: keyboard maps to drum pads (a = kick 36), not pitch keys',
   // 自由合奏(不武装声部)选鼓音色 → 演奏区显示全部 GM 鼓垫(替代无意义的钢琴键)
   await pageB.getByTestId('instrument-drums').click()
   await expect(pageB.getByTestId('drumpad')).toBeVisible({ timeout: 10_000 })
-  await expect(pageB.getByTestId('drum-36')).toContainText('KICK')
-  await expect(pageB.getByTestId('drum-38')).toContainText('SNARE')
+  await expect(pageB.getByTestId('drum-36')).toContainText('底鼓')
+  await expect(pageB.getByTestId('drum-38')).toContainText('军鼓')
 
   // 点击鼓垫 = 一击敲击: snare(38)
   await pageB.getByTestId('drum-38').click()

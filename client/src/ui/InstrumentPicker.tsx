@@ -37,7 +37,7 @@ export default function InstrumentPicker({
 }: InstrumentPickerProps) {
   return (
     <section className="panel">
-      <h2 className="panel-title">音色 · Instrument</h2>
+      <h2 className="panel-title">音色</h2>
       <div className="tsig-pills" role="radiogroup" aria-label="Instrument">
         {INSTRUMENTS.map(({ id, label, hint }) => {
           const active = current === id

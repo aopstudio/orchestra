@@ -1228,8 +1228,7 @@ export default function App() {
           新手教程 / 演奏手册
         </button>
         <p className="tagline">
-          Two browsers, one room. Hit a key here, <b>hear it in the other room</b> — and watch the
-          clock offset and server beat settle in the status panel.
+          一个房间,多个浏览器。在这里按下一个键,<b>在另一个浏览器里听到它</b> —— 时钟偏移与服务器节拍会在状态面板里稳定下来。
         </p>
       </header>
 
@@ -1419,8 +1418,8 @@ export default function App() {
       </main>
 
       <footer className="app-footer">
-        <span>clock offset = server − client · positive means server is ahead</span>
-        <span>pitch keys: white A–K, Z–M · black W–U, Q–6 (C3–C5) · drums: A/S/D/F… = kick/snare/hat…</span>
+        <span>时钟偏移 = 服务器 − 客户端 · 正数表示服务器超前</span>
+        <span>音高键: 白键 A–K、Z–M · 黑键 W–U、Q–6 (C3–C5) · 鼓: A/S/D/F… = 底鼓/军鼓/踩镲…</span>
       </footer>
 
       <TutorialModal open={tutorialOpen} onClose={handleCloseTutorial} />

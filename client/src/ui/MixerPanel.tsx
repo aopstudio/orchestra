@@ -24,7 +24,7 @@ export interface MixerPanelProps {
 export default function MixerPanel({ volumes, onChange }: MixerPanelProps) {
   return (
     <section className="panel">
-      <h2 className="panel-title">Mixer · 声部音量</h2>
+      <h2 className="panel-title">混音台 · 声部音量</h2>
       <div className="mixer">
         {INSTRUMENTS.map(({ id, label }) => {
           const pct = Math.round((volumes[id] ?? 1) * 100)

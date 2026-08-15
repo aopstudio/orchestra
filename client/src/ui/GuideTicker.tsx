@@ -19,6 +19,9 @@ const BEAT_PX = 22
 const PLAYHEAD_PCT = 0.15
 /** Minimum cell width (px); labels clip rather than cells overlap. */
 const MIN_CELL_PX = 18
+/** 鼓声部: 拍格加宽,2 字鼓名(底鼓/军鼓/踩镲…)完整显示不截断。 */
+const DRUM_BEAT_PX = 36
+const DRUM_MIN_CELL_PX = 40
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
@@ -79,6 +82,10 @@ export default function GuideTicker({
   const prepBeatsRef = useRef(prepBeats)
   const totalBeats = useMemo(() => totalBeatsOf(notes), [notes])
   const totalBeatsRef = useRef(totalBeats)
+  // 鼓声部用更宽的拍格(鼓名 2 字完整显示);旋律声部保持紧凑。
+  const beatPx = isDrums ? DRUM_BEAT_PX : BEAT_PX
+  const minCellPx = isDrums ? DRUM_MIN_CELL_PX : MIN_CELL_PX
+  const beatPxRef = useRef(beatPx)
 
   // Keep the rAF-visible values fresh. Updated after every commit (never
   // during render — react-hooks/refs) so the per-frame loop always reads the
@@ -86,6 +93,7 @@ export default function GuideTicker({
   useLayoutEffect(() => {
     prepBeatsRef.current = prepBeats
     totalBeatsRef.current = totalBeats
+    beatPxRef.current = beatPx
   })
 
   // Sample the live beat every frame. The track transform AND note states are
@@ -104,11 +112,12 @@ export default function GuideTicker({
         try {
           const total = totalBeatsRef.current
           const prep = prepBeatsRef.current
+          const pxPerBeat = beatPxRef.current
           const vw = viewport.clientWidth
-          const trackW = Math.max(vw, (prep + total) * BEAT_PX)
-          // Playhead sits at PLAYHEAD_PCT*vw; the current beat (prep+safe)*BEAT_PX
+          const trackW = Math.max(vw, (prep + total) * pxPerBeat)
+          // Playhead sits at PLAYHEAD_PCT*vw; the current beat (prep+safe)*pxPerBeat
           // must land there, so the track shifts LEFT as beats advance.
-          const raw = PLAYHEAD_PCT * vw - (prep + safe) * BEAT_PX
+          const raw = PLAYHEAD_PCT * vw - (prep + safe) * pxPerBeat
           // Clamp: track's start never goes right of the playhead, its end
           // never goes left of it.
           const hi = PLAYHEAD_PCT * vw
@@ -164,7 +173,7 @@ export default function GuideTicker({
   return (
     <section className={`guide-ticker-panel panel${enabled ? '' : ' guide-ticker-off'}`}>
       <div className="guide-ticker-head">
-        <span className="guide-ticker-title">简谱 · Guide Position</span>
+        <span className="guide-ticker-title">简谱 · 引导位置</span>
         <span className="guide-ticker-now">
           <span ref={nowRef}>
             <em>—</em>
@@ -185,7 +194,7 @@ export default function GuideTicker({
                 className={`guide-tick${major ? ' guide-tick-major' : ''}${
                   prep ? ' guide-tick-prep' : ''
                 }`}
-                style={{ left: (prepBeats + beat) * BEAT_PX }}
+                style={{ left: (prepBeats + beat) * beatPx }}
               />
             ))}
             {notes.map((n, i) => {
@@ -204,8 +213,8 @@ export default function GuideTicker({
                   data-name={fullName}
                   title={`${fullName} · beat ${n.beat}`}
                   style={{
-                    left: (prepBeats + n.beat) * BEAT_PX,
-                    width: Math.max((end - n.beat) * BEAT_PX, MIN_CELL_PX),
+                    left: (prepBeats + n.beat) * beatPx,
+                    width: Math.max((end - n.beat) * beatPx, minCellPx),
                   }}
                 >
                   <span className="guide-note-label">{label}</span>
@@ -214,7 +223,7 @@ export default function GuideTicker({
             })}
           </div>
         ) : (
-          <span className="guide-ticker-empty">pick a part to see the 简谱 guide</span>
+          <span className="guide-ticker-empty">认领声部后显示简谱引导</span>
         )}
         <div className="guide-ticker-playhead" data-testid="guide-ticker-playhead" />
       </div>

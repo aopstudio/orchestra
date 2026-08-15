@@ -3,36 +3,18 @@
  *
  * 鼓声部的音符是 GM 鼓件(35–51),大多落在钢琴琴键(48–84)之外,无法在
  * JamPad 上高亮。DrumPad 把该声部用到的鼓件渲染成独立"鼓垫",每个鼓垫:
- * - 显示鼓件名 + 电脑键位(DRUM_KEYMAP 反查,按 A 即敲 Kick)
+ * - 显示鼓件中文名 + 电脑键位(DRUM_KEYMAP 反查,按 A 即敲底鼓)
  * - guideCurrent → 琥珀色脉冲(现在该敲)
  * - guideUpcoming → 淡琥珀描边(即将要敲)
  * - remote → 其他玩家正在敲的紫色高亮
  * - 鼠标/触摸点击 = one-shot 敲击
+ *
+ * 鼓件名与鼓的简谱流动谱共用同一套中文短名(DRUM_LABELS),两处提示完全一致。
  */
 
 import type { SongNote } from '../songs/songs'
 import { DRUM_KEYMAP } from '../input/keyboard'
-
-/** GM 鼓件音符 → 显示名。 */
-const DRUM_NAMES: Record<number, string> = {
-  35: 'ACOUSTIC KICK',
-  36: 'KICK',
-  37: 'RIMSHOT',
-  38: 'SNARE',
-  39: 'CLAP',
-  40: 'E-SNARE',
-  41: 'LOW FLOOR TOM',
-  42: 'CLOSED HAT',
-  43: 'HI FLOOR TOM',
-  44: 'PEDAL HAT',
-  45: 'MID TOM',
-  46: 'OPEN HAT',
-  47: 'LOW-MID TOM',
-  48: 'HI TOM',
-  49: 'CRASH',
-  50: 'HIGH TOM',
-  51: 'COWBELL',
-}
+import { drumLabel } from '../input/drumNames'
 
 /** DRUM_KEYMAP 反查: 鼓件音符 → 键位字母。 */
 const DRUM_KEY_TO_NOTE: Record<string, number> = DRUM_KEYMAP
@@ -97,7 +79,7 @@ export default function DrumPad({
             }}
           >
             <span className="drum-pad-key">{key ?? ''}</span>
-            <span className="drum-pad-name">{DRUM_NAMES[note] ?? `GM ${note}`}</span>
+            <span className="drum-pad-name">{drumLabel(note) ?? `GM ${note}`}</span>
           </button>
         )
       })}

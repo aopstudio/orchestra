@@ -187,7 +187,7 @@ export default function JamPad({
     <section className="panel kbd-panel">
       <h2 className="panel-title">
         <span>Keyboard</span>
-        <span className="kbd-hint">{enabled ? 'keys live' : 'connect to play'}</span>
+        <span className="kbd-hint">{enabled ? '琴键已激活' : '连接后演奏'}</span>
       </h2>
 
       <div className={`keys${enabled ? '' : ' keys-off'}`} aria-label="piano keyboard">

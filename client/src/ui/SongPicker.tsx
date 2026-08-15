@@ -123,7 +123,7 @@ export default function SongPicker({
           onClick={() => setOpen(!open)}
         >
           <span className="panel-chevron">▶</span>
-          <span>Songbook · 曲库</span>
+          <span>曲库</span>
           {selectedSong !== null && <span className="songbook-current">{selectedSong.title}</span>}
           {(armed || (countdownBeatsLeft ?? 0) > 0) && (
             <span className="panel-title-dot" data-testid="song-panel-status" />
@@ -132,10 +132,10 @@ export default function SongPicker({
         {armed ? (
           <span className="songbook-armed">
             <span className="dot" />
-            ARMED
+            已认领
           </span>
         ) : (
-          <span className="kbd-hint">pick a part to arm</span>
+          <span className="kbd-hint">认领声部开始引导</span>
         )}
       </h2>
 

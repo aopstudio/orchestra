@@ -101,7 +101,7 @@ export default function StatusPanel(props: StatusPanelProps) {
   return (
     <section className="panel">
       <h2 className="panel-title">
-        <span>Status</span>
+        <span>状态</span>
         <span className={`badge ${badge.className}`} data-testid="conn-badge">
           <span className="dot" />
           {badge.label}
@@ -110,7 +110,7 @@ export default function StatusPanel(props: StatusPanelProps) {
 
       <div className="status-stack">
         <div className="status-identity">
-          <b>{myName}</b> · {myId === null ? 'not joined' : `id ${myId.slice(0, 8)}`}
+          <b>{myName}</b> · {myId === null ? '未加入' : `id ${myId.slice(0, 8)}`}
           <br />
           {serverUrl}
           {roomCode !== null && (
@@ -123,15 +123,15 @@ export default function StatusPanel(props: StatusPanelProps) {
 
         <div className="readouts">
           <Readout
-            label="① KEY→SOUND"
+            label="① 按键→出声"
             value={latencyMs === null ? '—' : `${Math.round(latencyMs)}`}
             unit={latencyMs === null ? undefined : 'ms'}
             tone="amber"
-            sub="output-timestamp est."
+            sub="输出时间戳估算"
             testid="readout-latency"
           />
           <Readout
-            label="② CLOCK OFFSET"
+            label="② 时钟偏移"
             value={offsetText}
             unit="ms"
             tone="cyan"
@@ -139,7 +139,7 @@ export default function StatusPanel(props: StatusPanelProps) {
             testid="readout-offset"
           />
           <Readout
-            label="③ SERVER BEAT"
+            label="③ 服务器节拍"
             value={beatInBar === null ? '—' : `${beatInBar}`}
             unit={beatInBar === null ? undefined : `/ ${bpi}`}
             tone="ink"

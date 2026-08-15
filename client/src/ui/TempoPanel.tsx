@@ -57,7 +57,7 @@ export default function TempoPanel({
           onClick={() => setOpen(!open)}
         >
           <span className="panel-chevron">▶</span>
-          <span>Tempo · Meter</span>
+          <span>速度 · 拍号</span>
         </button>
         <button
           type="button"
@@ -67,14 +67,14 @@ export default function TempoPanel({
           onClick={onMetronomeToggle}
         >
           <span className="metronome-toggle-dot" />
-          Metronome {metronomeOn ? 'ON' : 'OFF'}
+          节拍器 {metronomeOn ? '开' : '关'}
         </button>
       </h2>
       {open && (
         <>
           <div className={connected ? 'tempo-control' : 'tempo-control tempo-control-off'}>
             <div className="tempo-head">
-              <span className="tempo-label">Room BPM</span>
+              <span className="tempo-label">房间速度</span>
               <span className="tempo-value" data-testid="tempo-value">
                 {bpm}
               </span>
@@ -99,7 +99,7 @@ export default function TempoPanel({
               <span>{MAX_TEMPO_BPM}</span>
             </div>
             <p className="tempo-hint">
-              Any player can change it — everyone in the room hears the new speed from the next beat.
+              任一玩家可改 —— 全房间从下一拍起听到新速度。
             </p>
           </div>
           <div className={connected ? 'tsig-control' : 'tsig-control tsig-off'}>
@@ -122,7 +122,7 @@ export default function TempoPanel({
               ))}
             </div>
             <p className="tsig-hint">
-              Any player can change it — everyone re-bars from the same beat position.
+              任一玩家可改 —— 全房间从同一拍位重新分小节。
             </p>
           </div>
         </>
