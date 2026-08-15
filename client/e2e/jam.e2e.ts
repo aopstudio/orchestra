@@ -283,6 +283,35 @@ test('song guide: arm the rock-groove drums → countdown → guide highlight �
   await ctx.close()
 })
 
+test('multi-instrument song: jingle-bells trumpet part arms, counts down, and guides on the keyboard', async ({
+  browser,
+}) => {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  await createRoom(page, 'BellsTrumpet')
+  await waitInstrumentsReady(page)
+  await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
+
+  // 乐器高亮模式: 认领铃儿响叮当的小号旋律声部
+  await page.getByTestId('guide-mode-highlight').click()
+  await page.getByTestId('song-jingle-bells').click()
+  await page.getByTestId('part-jingle-bells-melody').click()
+  await expect(page.getByTestId('part-jingle-bells-melody')).toContainText('我', {
+    timeout: 10_000,
+  })
+  await page.getByTestId('ready-btn').click()
+  await page.getByTestId('sync-start-btn').click()
+  await expect(page.getByTestId('songbook-countdown')).toBeVisible()
+
+  // 倒计时结束、歌曲开始 → 键盘琴键出现引导高亮(小号旋律在 C3–C5 内)
+  await expect
+    .poll(() => page.locator('.key.guide-now, .key.guide-next').count(), { timeout: 25_000 })
+    .toBeGreaterThan(0)
+  console.log('[e2e] multi-instrument: jingle-bells trumpet part guides on the keyboard')
+
+  await ctx.close()
+})
+
 test('tempo and meter changes broadcast to every player in the room', async ({ browser }) => {
   const ctxA = await browser.newContext()
   const pageA = await ctxA.newPage()

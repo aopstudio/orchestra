@@ -616,8 +616,256 @@ const SERENADE: Song = {
   ],
 }
 
+/**
+ * 铃儿响叮当(公有领域圣诞曲)——四乐器合奏
+ * C 大调,4/4 拍,132 BPM,16 小节(64 拍)。
+ * 编制: 小号(旋律) + 钢琴(分解和弦) + 贝斯(根音) + 鼓(轻快节奏)。
+ * 旋律为传统公有领域旋律,简谱: 3 3 3 | 3 3 3 | 3 5 1 2 | 3 | 4 4 4 4 | 4 3 3 3 | 3 2 2 3 | 2 5 ...
+ */
+const JINGLE_BELLS: Song = {
+  id: 'jingle-bells',
+  title: '铃儿响叮当',
+  bpm: 132,
+  bpi: 4,
+  parts: [
+    {
+      id: 'melody',
+      name: '小号 · 旋律',
+      instrument: 'trumpet',
+      notes: [
+        // A 段 (m1-m8)
+        { note: 64, beat: 0 }, { note: 64, beat: 1 }, { note: 64, beat: 2 },
+        { note: 64, beat: 4 }, { note: 64, beat: 5 }, { note: 64, beat: 6 },
+        { note: 64, beat: 8 }, { note: 67, beat: 9 }, { note: 72, beat: 10 }, { note: 74, beat: 11 },
+        { note: 76, beat: 12, duration: 2 },
+        { note: 77, beat: 16 }, { note: 77, beat: 17 }, { note: 77, beat: 18 }, { note: 77, beat: 19 },
+        { note: 77, beat: 20 }, { note: 76, beat: 21 }, { note: 76, beat: 22 }, { note: 76, beat: 23 },
+        { note: 76, beat: 24 }, { note: 74, beat: 25 }, { note: 74, beat: 26 }, { note: 76, beat: 27 },
+        { note: 74, beat: 28, duration: 2 }, { note: 67, beat: 30, duration: 2 },
+        // A' 段 (m9-m16)
+        { note: 64, beat: 32 }, { note: 64, beat: 33 }, { note: 64, beat: 34 },
+        { note: 64, beat: 36 }, { note: 64, beat: 37 }, { note: 64, beat: 38 },
+        { note: 64, beat: 40 }, { note: 67, beat: 41 }, { note: 72, beat: 42 }, { note: 74, beat: 43 },
+        { note: 76, beat: 44, duration: 2 },
+        { note: 77, beat: 48 }, { note: 77, beat: 49 }, { note: 77, beat: 50 }, { note: 77, beat: 51 },
+        { note: 77, beat: 52 }, { note: 76, beat: 53 }, { note: 76, beat: 54 }, { note: 76, beat: 55 },
+        { note: 67, beat: 56 }, { note: 67, beat: 57 }, { note: 65, beat: 58 }, { note: 62, beat: 59 },
+        { note: 60, beat: 60, duration: 4 },
+      ],
+    },
+    {
+      id: 'harmony',
+      name: '钢琴 · 和声',
+      instrument: 'piano',
+      notes: [
+        // 每小节一拍一个分解和弦音(C / F / G)
+        { note: 60, beat: 0 }, { note: 64, beat: 1 }, { note: 67, beat: 2 }, { note: 64, beat: 3 },
+        { note: 60, beat: 4 }, { note: 64, beat: 5 }, { note: 67, beat: 6 }, { note: 64, beat: 7 },
+        { note: 60, beat: 8 }, { note: 67, beat: 9 }, { note: 72, beat: 10 }, { note: 67, beat: 11 },
+        { note: 60, beat: 12 }, { note: 64, beat: 13 }, { note: 67, beat: 14 }, { note: 64, beat: 15 },
+        { note: 53, beat: 16 }, { note: 57, beat: 17 }, { note: 60, beat: 18 }, { note: 57, beat: 19 },
+        { note: 53, beat: 20 }, { note: 57, beat: 21 }, { note: 60, beat: 22 }, { note: 57, beat: 23 },
+        { note: 55, beat: 24 }, { note: 59, beat: 25 }, { note: 62, beat: 26 }, { note: 59, beat: 27 },
+        { note: 55, beat: 28 }, { note: 59, beat: 29 }, { note: 62, beat: 30 }, { note: 59, beat: 31 },
+        // A' 段重复
+        { note: 60, beat: 32 }, { note: 64, beat: 33 }, { note: 67, beat: 34 }, { note: 64, beat: 35 },
+        { note: 60, beat: 36 }, { note: 64, beat: 37 }, { note: 67, beat: 38 }, { note: 64, beat: 39 },
+        { note: 60, beat: 40 }, { note: 67, beat: 41 }, { note: 72, beat: 42 }, { note: 67, beat: 43 },
+        { note: 60, beat: 44 }, { note: 64, beat: 45 }, { note: 67, beat: 46 }, { note: 64, beat: 47 },
+        { note: 53, beat: 48 }, { note: 57, beat: 49 }, { note: 60, beat: 50 }, { note: 57, beat: 51 },
+        { note: 53, beat: 52 }, { note: 57, beat: 53 }, { note: 60, beat: 54 }, { note: 57, beat: 55 },
+        { note: 67, beat: 56 }, { note: 67, beat: 57 }, { note: 65, beat: 58 }, { note: 62, beat: 59 },
+        { note: 60, beat: 60 }, { note: 64, beat: 61 }, { note: 67, beat: 62 }, { note: 72, beat: 63 },
+      ],
+    },
+    {
+      id: 'bass',
+      name: '贝斯 · 低音',
+      instrument: 'bass',
+      notes: [
+        // 每小节根音两拍一换: C C | F F | G G ...
+        { note: 48, beat: 0, duration: 2 }, { note: 48, beat: 2, duration: 2 },
+        { note: 48, beat: 4, duration: 2 }, { note: 48, beat: 6, duration: 2 },
+        { note: 48, beat: 8, duration: 2 }, { note: 48, beat: 10, duration: 2 },
+        { note: 48, beat: 12, duration: 2 }, { note: 48, beat: 14, duration: 2 },
+        { note: 53, beat: 16, duration: 2 }, { note: 53, beat: 18, duration: 2 },
+        { note: 53, beat: 20, duration: 2 }, { note: 53, beat: 22, duration: 2 },
+        { note: 55, beat: 24, duration: 2 }, { note: 55, beat: 26, duration: 2 },
+        { note: 55, beat: 28, duration: 2 }, { note: 55, beat: 30, duration: 2 },
+        { note: 48, beat: 32, duration: 2 }, { note: 48, beat: 34, duration: 2 },
+        { note: 48, beat: 36, duration: 2 }, { note: 48, beat: 38, duration: 2 },
+        { note: 48, beat: 40, duration: 2 }, { note: 48, beat: 42, duration: 2 },
+        { note: 48, beat: 44, duration: 2 }, { note: 48, beat: 46, duration: 2 },
+        { note: 53, beat: 48, duration: 2 }, { note: 53, beat: 50, duration: 2 },
+        { note: 53, beat: 52, duration: 2 }, { note: 53, beat: 54, duration: 2 },
+        { note: 55, beat: 56, duration: 2 }, { note: 55, beat: 58, duration: 2 },
+        { note: 48, beat: 60, duration: 4 },
+      ],
+    },
+    {
+      id: 'drums',
+      name: '鼓 · 节奏',
+      instrument: 'drums',
+      notes: [
+        // 轻快摇滚: kick 1/3 拍、snare 2/4 拍、closed hat 每拍
+        ...Array.from({ length: 16 }, (_, bar) => {
+          const b = bar * 4
+          const notes: SongNote[] = []
+          for (let i = 0; i < 4; i += 1) {
+            if (i === 0 || i === 2) notes.push({ note: 36, beat: b + i }) // kick
+            if (i === 1 || i === 3) notes.push({ note: 38, beat: b + i }) // snare
+            notes.push({ note: 42, beat: b + i }) // closed hat
+          }
+          return notes
+        }).flat(),
+      ],
+    },
+  ],
+}
+
+/**
+ * 卡农 · 帕赫贝尔(公有领域)——三声部弦乐对位
+ * D 大调,4/4 拍,90 BPM,8 小节(32 拍)。
+ * 编制: 小提琴 1(主题) + 小提琴 2(三度叠置) + 低音(经典卡农低音线 D A B F# | G D G A)。
+ */
+const CANON: Song = {
+  id: 'canon',
+  title: '卡农 · 帕赫贝尔',
+  bpm: 90,
+  bpi: 4,
+  parts: [
+    {
+      id: 'v1',
+      name: '小提琴 1',
+      instrument: 'violin',
+      notes: [
+        { note: 66, beat: 0, duration: 2 }, { note: 69, beat: 2, duration: 2 },
+        { note: 64, beat: 4, duration: 2 }, { note: 67, beat: 6, duration: 2 },
+        { note: 62, beat: 8, duration: 2 }, { note: 66, beat: 10, duration: 2 },
+        { note: 61, beat: 12, duration: 2 }, { note: 64, beat: 14, duration: 2 },
+        { note: 59, beat: 16, duration: 2 }, { note: 62, beat: 18, duration: 2 },
+        { note: 57, beat: 20, duration: 2 }, { note: 61, beat: 22, duration: 2 },
+        { note: 55, beat: 24, duration: 2 }, { note: 59, beat: 26, duration: 2 },
+        { note: 57, beat: 28, duration: 4 },
+      ],
+    },
+    {
+      id: 'v2',
+      name: '小提琴 2',
+      instrument: 'violin',
+      notes: [
+        { note: 62, beat: 0, duration: 2 }, { note: 66, beat: 2, duration: 2 },
+        { note: 61, beat: 4, duration: 2 }, { note: 64, beat: 6, duration: 2 },
+        { note: 59, beat: 8, duration: 2 }, { note: 62, beat: 10, duration: 2 },
+        { note: 57, beat: 12, duration: 2 }, { note: 61, beat: 14, duration: 2 },
+        { note: 55, beat: 16, duration: 2 }, { note: 59, beat: 18, duration: 2 },
+        { note: 54, beat: 20, duration: 2 }, { note: 57, beat: 22, duration: 2 },
+        { note: 52, beat: 24, duration: 2 }, { note: 55, beat: 26, duration: 2 },
+        { note: 54, beat: 28, duration: 4 },
+      ],
+    },
+    {
+      id: 'bass',
+      name: '低音 · 卡农线',
+      instrument: 'bass',
+      notes: [
+        // D A B F# | G D G A —— 8 拍循环 × 4
+        { note: 50, beat: 0 }, { note: 57, beat: 1 }, { note: 59, beat: 2 }, { note: 54, beat: 3 },
+        { note: 55, beat: 4 }, { note: 50, beat: 5 }, { note: 55, beat: 6 }, { note: 57, beat: 7 },
+        { note: 50, beat: 8 }, { note: 57, beat: 9 }, { note: 59, beat: 10 }, { note: 54, beat: 11 },
+        { note: 55, beat: 12 }, { note: 50, beat: 13 }, { note: 55, beat: 14 }, { note: 57, beat: 15 },
+        { note: 50, beat: 16 }, { note: 57, beat: 17 }, { note: 59, beat: 18 }, { note: 54, beat: 19 },
+        { note: 55, beat: 20 }, { note: 50, beat: 21 }, { note: 55, beat: 22 }, { note: 57, beat: 23 },
+        { note: 50, beat: 24 }, { note: 57, beat: 25 }, { note: 59, beat: 26 }, { note: 54, beat: 27 },
+        { note: 55, beat: 28 }, { note: 50, beat: 29 }, { note: 55, beat: 30 }, { note: 57, beat: 31 },
+      ],
+    },
+  ],
+}
+
+/**
+ * 友谊地久天长(公有领域民谣)——四乐器合奏
+ * C 大调,4/4 拍,100 BPM,8 小节(32 拍)。
+ * 编制: 小号(旋律) + 小提琴(三度和声) + 贝斯(根音) + 鼓(轻柔节奏)。
+ */
+const AULD_LANG_SYNE: Song = {
+  id: 'auld-lang-syne',
+  title: '友谊地久天长',
+  bpm: 100,
+  bpi: 4,
+  parts: [
+    {
+      id: 'melody',
+      name: '小号 · 旋律',
+      instrument: 'trumpet',
+      notes: [
+        { note: 60, beat: 0 }, { note: 60, beat: 1 }, { note: 67, beat: 2 }, { note: 69, beat: 3 },
+        { note: 69, beat: 4 }, { note: 67, beat: 5 }, { note: 64, beat: 6 }, { note: 60, beat: 7 },
+        { note: 67, beat: 8 }, { note: 67, beat: 9 }, { note: 69, beat: 10 }, { note: 69, beat: 11 },
+        { note: 67, beat: 12, duration: 2 }, { note: 64, beat: 14, duration: 2 },
+        { note: 60, beat: 16 }, { note: 60, beat: 17 }, { note: 67, beat: 18 }, { note: 69, beat: 19 },
+        { note: 69, beat: 20 }, { note: 67, beat: 21 }, { note: 64, beat: 22 }, { note: 60, beat: 23 },
+        { note: 67, beat: 24 }, { note: 67, beat: 25 }, { note: 64, beat: 26 }, { note: 62, beat: 27 },
+        { note: 60, beat: 28, duration: 4 },
+      ],
+    },
+    {
+      id: 'harmony',
+      name: '小提琴 · 和声',
+      instrument: 'violin',
+      notes: [
+        // 旋律上方三度
+        { note: 64, beat: 0 }, { note: 64, beat: 1 }, { note: 71, beat: 2 }, { note: 72, beat: 3 },
+        { note: 72, beat: 4 }, { note: 71, beat: 5 }, { note: 67, beat: 6 }, { note: 64, beat: 7 },
+        { note: 71, beat: 8 }, { note: 71, beat: 9 }, { note: 72, beat: 10 }, { note: 72, beat: 11 },
+        { note: 71, beat: 12, duration: 2 }, { note: 67, beat: 14, duration: 2 },
+        { note: 64, beat: 16 }, { note: 64, beat: 17 }, { note: 71, beat: 18 }, { note: 72, beat: 19 },
+        { note: 72, beat: 20 }, { note: 71, beat: 21 }, { note: 67, beat: 22 }, { note: 64, beat: 23 },
+        { note: 71, beat: 24 }, { note: 71, beat: 25 }, { note: 67, beat: 26 }, { note: 65, beat: 27 },
+        { note: 64, beat: 28, duration: 4 },
+      ],
+    },
+    {
+      id: 'bass',
+      name: '贝斯 · 低音',
+      instrument: 'bass',
+      notes: [
+        { note: 48, beat: 0, duration: 2 }, { note: 55, beat: 2, duration: 2 },
+        { note: 53, beat: 4, duration: 2 }, { note: 48, beat: 6, duration: 2 },
+        { note: 48, beat: 8, duration: 2 }, { note: 53, beat: 10, duration: 2 },
+        { note: 55, beat: 12, duration: 2 }, { note: 48, beat: 14, duration: 2 },
+        { note: 48, beat: 16, duration: 2 }, { note: 55, beat: 18, duration: 2 },
+        { note: 53, beat: 20, duration: 2 }, { note: 48, beat: 22, duration: 2 },
+        { note: 55, beat: 24, duration: 2 }, { note: 55, beat: 26, duration: 2 },
+        { note: 48, beat: 28, duration: 4 },
+      ],
+    },
+    {
+      id: 'drums',
+      name: '鼓 · 节奏',
+      instrument: 'drums',
+      notes: [
+        // 轻柔进行曲: kick 1/3、snare 2/4、hat 每拍
+        ...Array.from({ length: 8 }, (_, bar) => {
+          const b = bar * 4
+          const notes: SongNote[] = []
+          for (let i = 0; i < 4; i += 1) {
+            if (i === 0 || i === 2) notes.push({ note: 36, beat: b + i })
+            if (i === 1 || i === 3) notes.push({ note: 38, beat: b + i })
+            notes.push({ note: 42, beat: b + i })
+          }
+          return notes
+        }).flat(),
+      ],
+    },
+  ],
+}
+
 /** 内置曲库(按 id 索引) */
 export const SONGS: Song[] = [
+  JINGLE_BELLS,
+  CANON,
+  AULD_LANG_SYNE,
   ROCK_GROOVE,
   BLUES_12BAR,
   TWINKLE,

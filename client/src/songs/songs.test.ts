@@ -77,4 +77,18 @@ describe('内置曲库', () => {
     expect(instruments.has('bass')).toBe(true)
     expect(instruments.has('piano')).toBe(true)
   })
+
+  it('曲库包含多首真正的多乐器合奏(≥3 个声部且 ≥3 种不同乐器)', () => {
+    const multi = SONGS.filter(
+      (s: Song) =>
+        s.parts.length >= 3 &&
+        new Set(s.parts.map((p: SongPart) => p.instrument)).size >= 3,
+    )
+    // 铃儿响叮当 / 友谊地久天长 / 摇滚循环 / 十二小节布鲁斯
+    expect(multi.length).toBeGreaterThanOrEqual(4)
+    for (const song of multi) {
+      const instruments = new Set(song.parts.map((p: SongPart) => p.instrument))
+      expect(instruments.size).toBeGreaterThanOrEqual(3)
+    }
+  })
 })
