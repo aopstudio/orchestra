@@ -71,7 +71,7 @@ const DEFAULT_SUSTAIN: Record<InstrumentId, number> = {
   bass: 0, // 衰减型,不用
   drums: 0.4,
   trumpet: 1.2,
-  violin: 4,
+  violin: 2, // 弦乐长音 1.5–3s 为常态;4s 会让"按住不放"拖沓到失去乐句感
 }
 
 const DECAYING: ReadonlySet<InstrumentId> = new Set(['piano', 'bass'])
@@ -199,15 +199,27 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
 
   type SoundfontInstance = ReturnType<typeof Soundfont>
 
-  /** 采样路径: 返回 smplr 的 StopFn 作为停止函数。 */
+  /**
+   * 采样路径: 返回 smplr 的 StopFn 作为停止函数。
+   *
+   * 实时演奏**不传 duration**: smplr 的 duration 会立刻对 voice 执行
+   * `voice.stop(releaseAt)`,其第一步就把 voice 置为 "stopping"——之后
+   * noteOff 的任何 stop 调用都被幂等忽略,声音只能响满 duration
+   * (持续型小提琴/小号按住或快速松开都停不下来)。
+   * 不传 duration → voice 保持 "playing",松开(noteOff)随时截断;
+   * 漏放时采样播完自然结束兜底。
+   * 回放(replay)才传显式 durationSec,按谱面时值播放。
+   */
   function startSampled(
     inst: SoundfontInstance,
     note: number,
     velocity: number,
     time: number,
-    duration: number,
+    duration?: number,
   ): NoteStopFn {
-    return inst.start({ note, velocity, time, duration })
+    return duration === undefined
+      ? inst.start({ note, velocity, time })
+      : inst.start({ note, velocity, time, duration })
   }
 
   /** 当前活动声音: `${instrument}:${note}` → 停止函数。 */
@@ -267,10 +279,16 @@ export async function createInstruments(ctx: AudioContext): Promise<Instruments>
               : piano
       if (sampled !== null) {
         try {
-          // 采样路径: 衰减型给一个长上限(让采样自带的自然衰减完整播放),
-          // 持续型按 ring 控制;显式 durationSec(回放)总是直接采用。
-          const sampledDuration = durationSec !== undefined ? durationSec : decaying ? 8 : ring
-          stop = startSampled(sampled, note, velocity, time, sampledDuration)
+          // 采样路径: 实时演奏不传 duration(让 voice 保持 playing,noteOff 可随时
+          // 截断 —— 传 duration 会把 voice 置为 stopping,松开也停不下来);
+          // 回放(replay)才传显式 durationSec 按谱面时值播放。
+          stop = startSampled(
+            sampled,
+            note,
+            velocity,
+            time,
+            durationSec !== undefined ? durationSec : undefined,
+          )
         } catch (err) {
           console.warn(`Soundfont ${instrument} start failed (switching to fallback):`, err)
           stop = null
