@@ -163,6 +163,21 @@ test('selectSong 消息形状(songId 可为 null 表示取消选曲)', () => {
   }>()
 })
 
+test('setName 消息形状', () => {
+  expectTypeOf<Extract<ClientMsg, { type: 'setName' }>>().toEqualTypeOf<{
+    type: 'setName'
+    name: string
+  }>()
+})
+
+test('playerRenamed 广播形状', () => {
+  expectTypeOf<Extract<ServerMsg, { type: 'playerRenamed' }>>().toEqualTypeOf<{
+    type: 'playerRenamed'
+    id: string
+    name: string
+  }>()
+})
+
 test('setReady 消息形状', () => {
   expectTypeOf<Extract<ClientMsg, { type: 'setReady' }>>().toEqualTypeOf<{
     type: 'setReady'

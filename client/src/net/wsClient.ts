@@ -13,6 +13,7 @@ import type { ClientMsg, InstrumentId, ServerMsg } from '@orchestra/shared'
 type WelcomeMsg = Extract<ServerMsg, { type: 'welcome' }>
 type RoomErrorMsg = Extract<ServerMsg, { type: 'roomError' }>
 type PeerJoinedMsg = Extract<ServerMsg, { type: 'peerJoined' }>
+type PlayerRenamedMsg = Extract<ServerMsg, { type: 'playerRenamed' }>
 type PeerLeftMsg = Extract<ServerMsg, { type: 'peerLeft' }>
 type ClockMsg = Extract<ServerMsg, { type: 'clock' }>
 type NoteMsg = Extract<ServerMsg, { type: 'note' }>
@@ -34,6 +35,7 @@ export interface WsHandlers {
   onWelcome(msg: WelcomeMsg): void
   onRoomError(msg: RoomErrorMsg): void
   onPeerJoined(msg: PeerJoinedMsg): void
+  onPlayerRenamed(msg: PlayerRenamedMsg): void
   onPeerLeft(msg: PeerLeftMsg): void
   onClock(msg: ClockMsg): void
   onNote(msg: NoteMsg): void
@@ -134,6 +136,11 @@ export class WsClient {
   /** 认领/取消认领某首歌的某个声部(partId=null 取消;房间级互斥)。 */
   sendSelectPart(songId: string, partId: string | null): void {
     this.send({ type: 'selectPart', songId, partId })
+  }
+
+  /** 修改自己的玩家名称(全房间同步)。 */
+  sendSetName(name: string): void {
+    this.send({ type: 'setName', name })
   }
 
   /** 设置/取消准备状态。 */
@@ -254,6 +261,9 @@ export class WsClient {
         break
       case 'peerJoined':
         this.handlers.onPeerJoined(parsed as PeerJoinedMsg)
+        break
+      case 'playerRenamed':
+        this.handlers.onPlayerRenamed(parsed as PlayerRenamedMsg)
         break
       case 'peerLeft':
         this.handlers.onPeerLeft(parsed as PeerLeftMsg)

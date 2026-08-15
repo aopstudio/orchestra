@@ -766,6 +766,46 @@ test('three players claim distinct parts, ready up, and start rock-groove togeth
   }
 })
 
+test('renaming yourself in-room syncs to peers and the part-claim table (blur commits, no extra UI)', async ({
+  browser,
+}) => {
+  const ctxA = await browser.newContext()
+  const pageA = await ctxA.newPage()
+  const roomCode = await createRoom(pageA, 'Host')
+  const ctxB = await browser.newContext()
+  const pageB = await ctxB.newPage()
+  await joinRoom(pageB, 'Guest', roomCode)
+  await pageB.waitForTimeout(600)
+
+  // B 的 Other Players 名单里显示 A(改名前的名字)
+  await expect(pageB.getByTestId('peers')).toContainText('Host', { timeout: 10_000 })
+
+  // A 改名: 填入新名字 + 失焦(blur 即提交,无按钮)
+  await pageA.getByTestId('name-input').fill('AlphaLeader')
+  await pageA.getByTestId('name-input').blur()
+  await expect(pageB.getByTestId('peers')).toContainText('AlphaLeader', { timeout: 10_000 })
+  await expect(pageB.getByTestId('peers')).not.toContainText('Host')
+
+  // A 认领声部后再改名 → B 的认领表也显示新名字
+  // (createRoom 已展开曲库,直接选曲)
+  await pageA.getByTestId('song-twinkle').click()
+  await expect(pageA.getByTestId('part-twinkle-melody')).toBeVisible({ timeout: 10_000 })
+  await pageA.getByTestId('part-twinkle-melody').click()
+  await expect(pageB.getByTestId('part-twinkle-melody')).toContainText('AlphaLeader', {
+    timeout: 10_000,
+  })
+  await pageA.getByTestId('name-input').fill('NewName2')
+  await pageA.getByTestId('name-input').blur()
+  await expect(pageB.getByTestId('part-twinkle-melody')).toContainText('NewName2', {
+    timeout: 10_000,
+  })
+  await expect(pageB.getByTestId('peers')).toContainText('NewName2', { timeout: 10_000 })
+  console.log('[e2e] rename: blur-commit syncs peers + claim table without extra UI')
+
+  await ctxA.close()
+  await ctxB.close()
+})
+
 test('room song pick is host-only, synced to guests, and cancelable (song + part)', async ({
   browser,
 }) => {

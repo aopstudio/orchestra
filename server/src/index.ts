@@ -232,6 +232,8 @@ wss.on('connection', (rawWs) => {
       }
     } else if (msg.type === 'setReady') {
       room.setReady(member.id, msg.ready)
+    } else if (msg.type === 'setName') {
+      room.setName(member.id, msg.name)
     } else if (msg.type === 'sync') {
       room.sync(member.id, msg.t1)
     }

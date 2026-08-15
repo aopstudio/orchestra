@@ -46,6 +46,8 @@ export interface Room {
   ): 'ok' | 'taken' | 'wrongSong' | 'noSong'
   /** 设置/取消在线成员级准备状态并广播编排状态。 */
   setReady(memberId: string, ready: boolean): void
+  /** 修改自己的玩家名称并广播(playerRenamed + 认领表同步)。 */
+  setName(memberId: string, name: string): void
   sync(memberId: string, t1: number): void
   broadcastClock(): void
 }
@@ -216,6 +218,25 @@ export function createRoom(
         for (const cl of ensemble.claims) {
           if (cl.playerId === memberId) cl.ready = ready
         }
+      }
+      broadcastEnsemble()
+    },
+
+    setName(memberId, name) {
+      const member = members.get(memberId)
+      if (member === undefined) return
+      const trimmed = name.trim().slice(0, 20)
+      if (trimmed === '' || trimmed === member.name) return
+      member.name = trimmed
+      // 认领表里的玩家名同步更新(声部认领展示处也显示新名字)
+      if (ensemble !== null) {
+        for (const cl of ensemble.claims) {
+          if (cl.playerId === memberId) cl.playerName = trimmed
+        }
+      }
+      const msg: ServerMsg = { type: 'playerRenamed', id: memberId, name: trimmed }
+      for (const m of members.values()) {
+        m.send(msg)
       }
       broadcastEnsemble()
     },

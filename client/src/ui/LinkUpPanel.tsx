@@ -11,6 +11,8 @@ export interface LinkUpPanelProps {
   onServerUrlChange: (v: string) => void
   name: string
   onNameChange: (v: string) => void
+  /** NAME 输入框失焦(视为改名完成)。 */
+  onNameBlur?: () => void
   roomCodeInput: string
   onRoomCodeInputChange: (v: string) => void
   connState: ConnState
@@ -31,6 +33,7 @@ export default function LinkUpPanel({
   onServerUrlChange,
   name,
   onNameChange,
+  onNameBlur,
   roomCodeInput,
   onRoomCodeInputChange,
   connState,
@@ -70,6 +73,7 @@ export default function LinkUpPanel({
             data-testid="name-input"
             value={name}
             onChange={(e) => onNameChange(e.target.value)}
+            onBlur={() => onNameBlur?.()}
             spellCheck={false}
             autoComplete="off"
           />

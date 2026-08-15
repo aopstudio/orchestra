@@ -71,6 +71,7 @@ function makeHandlers(): { handlers: WsHandlers; welcomes: unknown[] } {
     onWelcome: (m) => welcomes.push(m),
     onRoomError: () => {},
     onPeerJoined: () => {},
+    onPlayerRenamed: () => {},
     onPeerLeft: () => {},
     onClock: () => {},
     onNote: () => {},

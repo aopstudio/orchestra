@@ -21,6 +21,8 @@ export type InstrumentId = 'piano' | 'bass' | 'drums' | 'trumpet' | 'violin'
 export type ClientMsg =
   | { type: 'createRoom'; name: string }
   | { type: 'join'; name: string; roomCode: string }
+  /** 进入房间后修改自己的玩家名称(全房间同步)。 */
+  | { type: 'setName'; name: string }
   | { type: 'note'; note: number; velocity: number; instrument: InstrumentId }
   | { type: 'noteOff'; note: number }
   | { type: 'setTempo'; bpm: number }
@@ -52,6 +54,7 @@ export type ServerMsg =
     }
   | { type: 'roomError'; message: string }
   | { type: 'peerJoined'; id: string; name: string }
+  | { type: 'playerRenamed'; id: string; name: string }
   | { type: 'peerLeft'; id: string }
   | { type: 'clock'; beat: number; tempo: number; bpi: number; serverTime: number }
   | { type: 'tempo'; bpm: number; serverTime: number }

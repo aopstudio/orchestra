@@ -104,6 +104,9 @@ export default function App() {
     return `${proto}//${window.location.host}/ws`
   })
   const [name, setName] = useState(() => `player-${Math.floor(1000 + Math.random() * 9000)}`)
+  useEffect(() => {
+    nameRef.current = name
+  }, [name])
   /** 加入已有房间时填写的房间码(创建房间时忽略)。 */
   const [roomCodeInput, setRoomCodeInput] = useState('')
   /** MIDI 连接状态(Phase 2)。 */
@@ -276,6 +279,10 @@ export default function App() {
   const localVoicesRef = useRef<Map<string, () => void>>(new Map())
   /** 自由合奏起奏目标(handlers 的 onClock 读取)。 */
   const jamUntilRef = useRef<{ untilBeat: number; bpi: number; pickup: boolean } | null>(null)
+  /** 当前玩家名(重连校正用,随输入实时同步)。 */
+  const nameRef = useRef<string>(name)
+  /** 已提交到服务器的玩家名(blur 改名比较用 —— 不被输入同步覆盖)。 */
+  const committedNameRef = useRef<string>(name)
   /** 我的玩家 id(handlers 的认领采纳读取)。 */
   const myIdRef = useRef<string | null>(null)
   /** 最新曲库(内置 + 自定义),供 handlers 的认领采纳读取(经 ref 拿最新)。 */
@@ -531,6 +538,7 @@ export default function App() {
       setOwnerId,
       setMyReady,
       myIdRef,
+      nameRef,
       songsRef,
       setSelectedSong,
       setSelectedPart,
@@ -539,6 +547,14 @@ export default function App() {
   }
 
   // --- user interactions -----------------------------------------------------
+
+  /** NAME 输入框失焦 = 改名完成: 名字变化且非空时同步到全房间(无感,无额外按钮)。 */
+  const handleNameBlur = (): void => {
+    const next = name.trim()
+    if (next === '' || next === committedNameRef.current) return
+    committedNameRef.current = next
+    wsRef.current?.sendSetName(next)
+  }
 
   /** 复制房间码到剪贴板(带短暂反馈)。 */
   const handleCopyRoomCode = (): void => {
@@ -1262,6 +1278,7 @@ export default function App() {
             onServerUrlChange={setServerUrl}
             name={name}
             onNameChange={setName}
+            onNameBlur={handleNameBlur}
             roomCodeInput={roomCodeInput}
             onRoomCodeInputChange={setRoomCodeInput}
             connState={connState}

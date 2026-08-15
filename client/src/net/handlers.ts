@@ -68,6 +68,8 @@ export interface HandlerDeps {
   setJamActive: Dispatch<SetStateAction<boolean>>
   /** 我的玩家 id(认领归属判断)。 */
   myIdRef: MutableRefObject<string | null>
+  /** 我的玩家名称(blur 改名 / 重连校正用)。 */
+  nameRef: MutableRefObject<string>
   /** 最新曲库(内置 + 自定义,认领采纳时查找歌曲)。 */
   songsRef: MutableRefObject<Song[]>
   setSelectedSong: Dispatch<SetStateAction<Song | null>>
@@ -148,6 +150,7 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
     setOwnerId,
     setMyReady,
     setEnsembleState,
+    nameRef,
   } = deps
 
   return {
@@ -168,6 +171,11 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
       setError(null)
       // 房主(选曲/开始权限): welcome 下发,重连后刷新
       setOwnerId(msg.ownerId)
+      // 若本地已改名(welcome 里是加入时的旧名),重连后立即校正服务器
+      const myName = nameRef.current.trim()
+      if (myName !== '' && myName !== msg.name) {
+        wsRef.current?.sendSetName(myName)
+      }
       // 重新加入后重置自由合奏状态
       jamUntilRef.current = null
       setJamCountdown(null)
@@ -209,6 +217,11 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
       setPeers((prev) =>
         prev.some((p) => p.id === msg.id) ? prev : [...prev, { id: msg.id, name: msg.name }],
       )
+    },
+
+    onPlayerRenamed: (msg) => {
+      // 任意玩家改名 → 同步更新 Other Players 名单里对应的名字
+      setPeers((prev) => prev.map((p) => (p.id === msg.id ? { ...p, name: msg.name } : p)))
     },
 
     onPeerLeft: (msg) => {
