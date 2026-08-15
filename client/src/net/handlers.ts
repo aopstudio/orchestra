@@ -90,6 +90,8 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
   // 远端活动声音: `${from}:${note}` → 停止函数。按下时登记、松开(noteOff)时停止,
   // 使远端听到的延音与发送者一致(按住延音、松开即止)。
   const remoteVoices = new Map<string, () => void>()
+  // 远端鼓击高亮计时器(按音符): 鼓是 one-shot 没有 noteOff,点亮 ~300ms 后熄灭。
+  const remoteDrumFlashTimers = new Map<number, ReturnType<typeof setTimeout>>()
 
   const {
     wsRef,
@@ -340,7 +342,25 @@ export function createProtocolHandlers(deps: HandlerDeps): WsHandlers {
       // Highlight the same key on the visible pad, but only for notes that
       // exist on it — the sound above plays for every note, remoteNotes is
       // a purely visual concern.
-      if (msg.note >= PAD_LOW_NOTE && msg.note <= PAD_HIGH_NOTE) {
+      // 鼓击(GM 35–51)在琴键范围(48+)之外,亮在鼓垫上;一击没有 noteOff,
+      // 点亮是瞬态闪光(~300ms),连击重置计时。
+      if (msg.instrument === 'drums') {
+        const prevTimer = remoteDrumFlashTimers.get(msg.note)
+        if (prevTimer !== undefined) clearTimeout(prevTimer)
+        setRemoteNotes((prev) => (prev.has(msg.note) ? prev : new Set(prev).add(msg.note)))
+        remoteDrumFlashTimers.set(
+          msg.note,
+          setTimeout(() => {
+            remoteDrumFlashTimers.delete(msg.note)
+            setRemoteNotes((prev) => {
+              if (!prev.has(msg.note)) return prev
+              const next = new Set(prev)
+              next.delete(msg.note)
+              return next
+            })
+          }, 300),
+        )
+      } else if (msg.note >= PAD_LOW_NOTE && msg.note <= PAD_HIGH_NOTE) {
         setRemoteNotes((prev) => (prev.has(msg.note) ? prev : new Set(prev).add(msg.note)))
       }
     },

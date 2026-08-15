@@ -774,6 +774,24 @@ test('free-jam drums: keyboard maps to drum pads (a = kick 36), not pitch keys',
   expect(heardPad.note).toBe(38)
   console.log(`[e2e] free-jam drums: pad click → snare (note ${heardPad.note}, instrument ${heardPad.instrument})`)
 
+  // 鼓垫按下高亮是瞬态闪光: pointerdown → 短暂 .pressed → 自动熄灭(不卡住)
+  await pageB.getByTestId('drum-38').dispatchEvent('pointerdown')
+  await expect(pageB.getByTestId('drum-38')).toHaveClass(/pressed/, { timeout: 2000 })
+  await expect(pageB.getByTestId('drum-38')).not.toHaveClass(/pressed/, { timeout: 2000 })
+  console.log('[e2e] free-jam drums: pad highlight flashes and recovers')
+
+  // 远端鼓击: A 也选鼓(显示鼓垫),B 敲一下 → A 的鼓垫瞬态点亮(remote)后熄灭
+  await pageA.getByTestId('instrument-drums').click()
+  await expect(pageA.getByTestId('drumpad')).toBeVisible({ timeout: 10_000 })
+  await pageB.getByTestId('drum-38').click()
+  await expect
+    .poll(() => pageA.getByTestId('drum-38').getAttribute('class') ?? '', { timeout: 2000 })
+    .toContain('remote')
+  await expect
+    .poll(() => pageA.getByTestId('drum-38').getAttribute('class') ?? '', { timeout: 3000 })
+    .not.toContain('remote')
+  console.log('[e2e] free-jam drums: remote pad highlight flashes and recovers')
+
   // 键盘映射仍然有效: 'a' = kick 36(不是钢琴音高 60)
   await pageB.evaluate(() => (document.activeElement as HTMLElement | null)?.blur?.())
   await pageB.keyboard.press('a')

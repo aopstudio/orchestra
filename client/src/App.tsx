@@ -280,6 +280,8 @@ export default function App() {
   const midiConnectionRef = useRef<MidiConnection | null>(null)
   /** MIDI notes currently held (keyboard or mouse) — dedupes noteOn across inputs. */
   const heldNotesRef = useRef<Set<number>>(new Set())
+  /** 鼓垫一击的瞬态高亮计时器: 按音符 → timer(连击重置),到点熄灭 downNotes。 */
+  const drumFlashTimersRef = useRef<Map<number, number>>(new Map())
   const connStateRef = useRef<ConnState>('idle')
   const urlRef = useRef(serverUrl)
   const connectingSinceRef = useRef<number | null>(null)
@@ -691,6 +693,23 @@ export default function App() {
       heldNotesRef.current.add(note)
     }
     setDownNotes((prev) => (prev.has(note) ? prev : new Set(prev).add(note)))
+
+    // 鼓垫一击(one-shot)没有 noteOff 可清状态: 高亮是瞬态闪光,
+    // ~180ms 后自动熄灭,连击重置计时(按下不放也不会卡住)。
+    if (oneShot) {
+      const prevTimer = drumFlashTimersRef.current.get(note)
+      if (prevTimer !== undefined) window.clearTimeout(prevTimer)
+      const t = window.setTimeout(() => {
+        drumFlashTimersRef.current.delete(note)
+        setDownNotes((prev) => {
+          if (!prev.has(note)) return prev
+          const next = new Set(prev)
+          next.delete(note)
+          return next
+        })
+      }, 180)
+      drumFlashTimersRef.current.set(note, t)
+    }
 
     // --- Phase 1 judgment: judge every local press against the armed part ---
     // Runs BEFORE the instrument check so judging works even while samples are
