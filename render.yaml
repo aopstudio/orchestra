@@ -1,0 +1,32 @@
+# Render Blueprint — Orchestra 海外免费部署
+#
+# 用法:
+#   1. 把项目推到 GitHub(注意: client/public/soundfonts/ 在 .gitignore 里,
+#      构建时 fetch-soundfonts.sh 会重新下载音源,无需入库)
+#   2. Render Dashboard → New → Blueprint → 选择本仓库
+#      (或手动 New Web Service,按下方注释填配置)
+#   3. 部署完成后打开 https://<服务名>.onrender.com 即可(前后端同端口)
+#
+# 手动创建 Web Service 时的等价配置:
+#   - Runtime: Node
+#   - Root Directory: (仓库根目录)
+#   - Build Command: npm ci && npm run build
+#   - Start Command: npm start
+#   - Instance Type: Free
+#
+# 免费层限制(重要):
+#   - 15 分钟无流量会休眠,下次访问需等 ~1 分钟冷启动(合奏进行中不会休眠)
+#   - 单实例,无持久磁盘(房间状态在内存,重启即清空 —— 本就如此)
+#   - 服务器在海外,国内访问延迟较高;适合海外朋友或测试用
+
+services:
+  - type: web
+    name: orchestra
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
