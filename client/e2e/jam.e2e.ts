@@ -293,6 +293,9 @@ test('tempo and meter changes broadcast to every player in the room', async ({ b
   await joinRoom(pageB, 'TempoB', roomCode)
 
   // A 把速度从 120 改到 90(聚焦滑块,按到目标值为止;快速连按偶有丢键)
+  // Tempo 面板默认折叠,双方先展开(B 要读取 tempo-value)
+  await pageA.getByTestId('tempo-panel-toggle').click()
+  await pageB.getByTestId('tempo-panel-toggle').click()
   const slider = pageA.getByTestId('tempo-slider')
   await slider.focus()
   for (let i = 0; i < 80; i += 1) {
@@ -692,6 +695,10 @@ test('jam sync: two players start a free jam together after a custom lead-in (ba
   const ctxB = await browser.newContext()
   const pageB = await ctxB.newPage()
   await joinRoom(pageB, 'JamB', roomCode)
+
+  // JamSync 面板默认折叠,双方先展开
+  await pageA.getByTestId('jam-panel-toggle').click()
+  await pageB.getByTestId('jam-panel-toggle').click()
 
   // A 设置 2 小节预备 + 小节开始(强拍),发起
   await pageA.getByTestId('jam-bars-2').click()

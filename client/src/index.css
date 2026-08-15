@@ -83,7 +83,7 @@ button {
    -------------------------------------------------------------------------- */
 
 .app {
-  max-width: 1240px;
+  max-width: 1560px;
   margin: 0 auto;
   padding: var(--s-6) var(--s-6) var(--s-5);
   display: flex;
@@ -138,7 +138,8 @@ button {
 
 .app-main {
   display: grid;
-  grid-template-columns: minmax(320px, 400px) 1fr;
+  /* 基态两列: 左=控制/准备, 右=演奏区(键盘全宽)。曲库/录歌(app-right)整行放底部。 */
+  grid-template-columns: minmax(300px, 340px) 1fr;
   gap: var(--s-5);
   align-items: start;
 }
@@ -151,6 +152,15 @@ button {
   display: flex;
   flex-direction: column;
   gap: var(--s-5);
+}
+
+/* 曲库 + 录歌: 窄/中屏时整行放底部(两列并排),不挤占键盘宽度 */
+.app-right {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-5);
+  align-items: start;
 }
 
 .app-footer {
@@ -175,6 +185,45 @@ button {
   border: 1px solid var(--line);
   border-radius: 4px;
   padding: var(--s-4);
+}
+
+/* 可折叠面板: 标题行整行可点,低频面板(合奏/速度)默认收起,减少左列长度 */
+.panel-title-toggle {
+  appearance: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  text-align: left;
+  min-width: 0;
+}
+
+.panel-title-toggle:hover {
+  color: var(--amber);
+}
+
+.panel-chevron {
+  font-size: 10px;
+  color: var(--ink-faint);
+  transition: transform 0.15s ease;
+}
+
+.panel-title-toggle[aria-expanded='true'] .panel-chevron {
+  transform: rotate(90deg);
+}
+
+.panel-title-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 10px rgba(255, 180, 84, 0.7);
+  flex: none;
 }
 
 /* L-shaped corner brackets, like a scope readout frame */
@@ -2372,8 +2421,26 @@ button {
    Responsive
    -------------------------------------------------------------------------- */
 
+@media (min-width: 1400px) {
+  /* 宽屏: 三列 —— 左控制, 中演奏(键盘 ≥688px 不受伤), 右曲库/创作,左右均衡 */
+  .app-main {
+    grid-template-columns: minmax(290px, 320px) 1fr minmax(290px, 320px);
+  }
+
+  .app-right {
+    grid-column: auto;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
 @media (max-width: 960px) {
   .app-main {
+    grid-template-columns: 1fr;
+  }
+
+  .app-right {
+    grid-column: auto;
     grid-template-columns: 1fr;
   }
 

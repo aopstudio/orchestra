@@ -1292,50 +1292,6 @@ export default function App() {
 
           <MixerPanel volumes={mixVolumes} onChange={handleMixerChange} />
 
-          <SongPicker
-            songs={[...SONGS, ...customSongs]}
-            selectedSongId={selectedSong?.id ?? null}
-            onSelectSong={handleSelectSong}
-            selectedPartId={selectedPart?.id ?? null}
-            onSelectPart={handleSelectPart}
-            enabled={connState === 'connected'}
-            progress={guideProgress}
-            judgeEnabled={judgeEnabled}
-            onToggleJudge={handleToggleJudge}
-            judgeStats={judgeStats}
-            countdownBeatsLeft={countdownBeatsLeft}
-            onRestart={handleRestart}
-            songBpmOverrides={songBpmOverrides}
-            onSongBpmChange={handleSongBpmChange}
-            guideMode={guideMode}
-            onGuideModeChange={handleGuideModeChange}
-            showScore={showScore}
-            onToggleScore={handleToggleScore}
-            onSyncStart={handleSyncStart}
-            ensemble={ensembleState}
-            myId={myId}
-            myReady={myReady}
-            onToggleReady={handleToggleReady}
-            canStart={canStartEnsemble}
-          />
-
-          <SongStudio
-            enabled={connState === 'connected'}
-            recording={isRecording}
-            onStartRecording={handleStartRecording}
-            onStopRecording={handleStopRecording}
-            recordedCount={recordedCount}
-            onSave={handleSaveRecording}
-            onImport={handleImportSong}
-            exportText={exportText}
-            onShare={() => handleShareSong()}
-            shareId={shareId}
-            onFetchShare={handleFetchShare}
-            onReplay={handleReplayRecording}
-            fetchedLikes={fetchedLikes}
-            onLike={handleLikeSong}
-          />
-
           <TempoPanel
             connState={connState}
             bpm={bpm}
@@ -1411,6 +1367,53 @@ export default function App() {
               enabled={connState === 'connected'}
             />
           )}
+        </div>
+
+        {/* 右列: 曲库 + 录歌/分享 —— 与键盘同屏,不挤占左侧控制面板 */}
+        <div className="app-right">
+          <SongPicker
+            songs={[...SONGS, ...customSongs]}
+            selectedSongId={selectedSong?.id ?? null}
+            onSelectSong={handleSelectSong}
+            selectedPartId={selectedPart?.id ?? null}
+            onSelectPart={handleSelectPart}
+            enabled={connState === 'connected'}
+            progress={guideProgress}
+            judgeEnabled={judgeEnabled}
+            onToggleJudge={handleToggleJudge}
+            judgeStats={judgeStats}
+            countdownBeatsLeft={countdownBeatsLeft}
+            onRestart={handleRestart}
+            songBpmOverrides={songBpmOverrides}
+            onSongBpmChange={handleSongBpmChange}
+            guideMode={guideMode}
+            onGuideModeChange={handleGuideModeChange}
+            showScore={showScore}
+            onToggleScore={handleToggleScore}
+            onSyncStart={handleSyncStart}
+            ensemble={ensembleState}
+            myId={myId}
+            myReady={myReady}
+            onToggleReady={handleToggleReady}
+            canStart={canStartEnsemble}
+          />
+
+          <SongStudio
+            enabled={connState === 'connected'}
+            recording={isRecording}
+            onStartRecording={handleStartRecording}
+            onStopRecording={handleStopRecording}
+            recordedCount={recordedCount}
+            onSave={handleSaveRecording}
+            onImport={handleImportSong}
+            exportText={exportText}
+            onShare={() => handleShareSong()}
+            shareId={shareId}
+            onFetchShare={handleFetchShare}
+            onReplay={handleReplayRecording}
+            fetchedLikes={fetchedLikes}
+            onLike={handleLikeSong}
+          />
         </div>
       </main>
 
