@@ -861,8 +861,79 @@ const AULD_LANG_SYNE: Song = {
   ],
 }
 
+
+
+/**
+ * 绿袖子 Greensleeves(公有领域英国民谣)——双人二重奏改编
+ * A 小调(自然小调,无黑键),4/4 拍,88 BPM,8 小节。
+ * 编制: 小号(旋律) + 钢琴(分解和弦伴奏,每拍一个和弦音)。
+ * 和声进行: Am–Am–Dm–Em(经典绿袖子和声,循环两遍)。
+ * 适合两人初次合奏: 一人吹旋律,一人琶音伴奏。
+ */
+const GREENSLEEVES: Song = {
+  id: 'greensleeves',
+  title: '绿袖子 Greensleeves',
+  bpm: 88,
+  bpi: 4,
+  parts: [
+    {
+      id: 'melody',
+      name: '小号 · 旋律',
+      instrument: 'trumpet',
+      notes: [
+        // 第一遍 (m1-m4)
+        // m1: 6 1 3 4 | 5 4 3 2
+        { note: 57, beat: 0 }, { note: 60, beat: 1 }, { note: 64, beat: 2 }, { note: 65, beat: 3 },
+        { note: 67, beat: 4 }, { note: 65, beat: 5 }, { note: 64, beat: 6 }, { note: 62, beat: 7 },
+        // m2: 3 3 4 5 | 6 1 7 6
+        { note: 64, beat: 8 }, { note: 64, beat: 9 }, { note: 65, beat: 10 }, { note: 67, beat: 11 },
+        { note: 69, beat: 12 }, { note: 72, beat: 13 }, { note: 71, beat: 14 }, { note: 69, beat: 15 },
+        // m3: 5 6 7 1' | 7 6 5 6
+        { note: 67, beat: 16 }, { note: 69, beat: 17 }, { note: 71, beat: 18 }, { note: 72, beat: 19 },
+        { note: 71, beat: 20 }, { note: 69, beat: 21 }, { note: 67, beat: 22 }, { note: 69, beat: 23 },
+        // m4: 7 1' 6 (长音收尾)
+        { note: 71, beat: 24 }, { note: 72, beat: 25 }, { note: 69, beat: 26, duration: 2 },
+        // 第二遍 (m5-m8)
+        { note: 57, beat: 28 }, { note: 60, beat: 29 }, { note: 64, beat: 30 }, { note: 65, beat: 31 },
+        { note: 67, beat: 32 }, { note: 65, beat: 33 }, { note: 64, beat: 34 }, { note: 62, beat: 35 },
+        { note: 64, beat: 36 }, { note: 64, beat: 37 }, { note: 65, beat: 38 }, { note: 67, beat: 39 },
+        { note: 69, beat: 40 }, { note: 72, beat: 41 }, { note: 71, beat: 42 }, { note: 69, beat: 43 },
+        { note: 67, beat: 44 }, { note: 69, beat: 45 }, { note: 71, beat: 46 }, { note: 72, beat: 47 },
+        { note: 71, beat: 48 }, { note: 69, beat: 49 }, { note: 67, beat: 50 }, { note: 69, beat: 51 },
+        { note: 71, beat: 52 }, { note: 72, beat: 53 }, { note: 69, beat: 54, duration: 2 },
+      ],
+    },
+    {
+      id: 'chords',
+      name: '钢琴 · 分解和弦',
+      instrument: 'piano',
+      notes: [
+        // 每小节 4 个分解和弦音(每拍一个)
+        // m1 Am: A C E C
+        { note: 57, beat: 0 }, { note: 60, beat: 1 }, { note: 64, beat: 2 }, { note: 60, beat: 3 },
+        // m2 Am: A C E A
+        { note: 57, beat: 4 }, { note: 60, beat: 5 }, { note: 64, beat: 6 }, { note: 69, beat: 7 },
+        // m3 Dm: D F A F
+        { note: 62, beat: 8 }, { note: 65, beat: 9 }, { note: 69, beat: 10 }, { note: 65, beat: 11 },
+        // m4 Em: E G B G
+        { note: 64, beat: 12 }, { note: 67, beat: 13 }, { note: 71, beat: 14 }, { note: 67, beat: 15 },
+        // m5 Am
+        { note: 57, beat: 16 }, { note: 60, beat: 17 }, { note: 64, beat: 18 }, { note: 60, beat: 19 },
+        // m6 Am
+        { note: 57, beat: 20 }, { note: 60, beat: 21 }, { note: 64, beat: 22 }, { note: 69, beat: 23 },
+        // m7 Dm
+        { note: 62, beat: 24 }, { note: 65, beat: 25 }, { note: 69, beat: 26 }, { note: 65, beat: 27 },
+        // m8 Em→Am: E G B → A 琶音收尾
+        { note: 64, beat: 28 }, { note: 67, beat: 29 }, { note: 71, beat: 30 }, { note: 57, beat: 31, duration: 2 },
+      ],
+    },
+  ],
+}
+
+
 /** 内置曲库(按 id 索引) */
 export const SONGS: Song[] = [
+  GREENSLEEVES,
   JINGLE_BELLS,
   CANON,
   AULD_LANG_SYNE,
