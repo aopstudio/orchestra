@@ -82,7 +82,7 @@ const TWINKLE: Song = {
     {
       id: 'bass',
       name: '低音',
-      instrument: 'bass',
+      instrument: 'piano',
       notes: [
         { note: 48, beat: 0, duration: 4 }, // C2 长音
         { note: 53, beat: 4, duration: 4 }, // F2
@@ -155,7 +155,7 @@ const ODE_TO_JOY: Song = {
     {
       id: 'bass',
       name: '低音',
-      instrument: 'bass',
+      instrument: 'piano',
       notes: [
         { note: 48, beat: 0, duration: 4 },
         { note: 53, beat: 4, duration: 4 },
@@ -330,7 +330,7 @@ const HAPPY_BIRTHDAY: Song = {
     {
       id: 'bass',
       name: '低音',
-      instrument: 'bass',
+      instrument: 'piano',
       notes: [
         { note: 48, beat: 0, duration: 3 },
         { note: 55, beat: 3, duration: 3 },
@@ -378,7 +378,7 @@ const FRERE_JACQUES: Song = {
     {
       id: 'bass',
       name: '低音',
-      instrument: 'bass',
+      instrument: 'piano',
       notes: [
         { note: 48, beat: 0, duration: 4 },
         { note: 48, beat: 4, duration: 4 },
@@ -422,7 +422,7 @@ const ROW_BOAT: Song = {
     {
       id: 'bass',
       name: '低音',
-      instrument: 'bass',
+      instrument: 'piano',
       notes: [
         { note: 48, beat: 0, duration: 4 },
         { note: 55, beat: 4, duration: 4 },

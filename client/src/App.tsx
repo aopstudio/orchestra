@@ -762,11 +762,12 @@ export default function App() {
     const keydownAt = performance.now()
     const targetAudio = sched.currentTime + LOCAL_LOOKAHEAD_SEC
     const instrument = currentInstrument()
-    // 按住延音: 记录停止函数,松开(noteOff)时调用
+    // 先停掉同键的旧声音,再起新音 —— 否则前一个音的释放尾巴会与新音叠加
+    // (快速连按同音时),低频贝斯/钢琴产生拍频,听感像"音高在变"。
+    const key = `${instrument}:${note}`
+    localVoicesRef.current.get(key)?.()
     const stop = inst.play(instrument, note, velocity, targetAudio - ctx.currentTime)
     if (stop !== null) {
-      const key = `${instrument}:${note}`
-      localVoicesRef.current.get(key)?.()
       localVoicesRef.current.set(key, stop)
     }
 
