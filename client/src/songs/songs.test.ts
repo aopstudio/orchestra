@@ -70,12 +70,17 @@ describe('内置曲库', () => {
   })
 
   it('至少包含一首三声部曲目(鼓+贝斯+键盘),覆盖 Phase 1 MVP 编制', () => {
-    const threePart = SONGS.find((s: Song) => s.parts.length >= 3)
+    // 精确匹配鼓+贝斯+键盘的编制(不误匹配全钢琴的三声部曲目)
+    const threePart = SONGS.find((s: Song) => {
+      const insts = new Set(s.parts.map((p: SongPart) => p.instrument))
+      return (
+        s.parts.length >= 3 &&
+        insts.has('drums') &&
+        insts.has('bass') &&
+        insts.has('piano')
+      )
+    })
     expect(threePart).toBeDefined()
-    const instruments = new Set((threePart?.parts ?? []).map((p: SongPart) => p.instrument))
-    expect(instruments.has('drums')).toBe(true)
-    expect(instruments.has('bass')).toBe(true)
-    expect(instruments.has('piano')).toBe(true)
   })
 
   it('曲库包含多首真正的多乐器合奏(≥3 个声部且 ≥3 种不同乐器)', () => {

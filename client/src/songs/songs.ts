@@ -931,8 +931,110 @@ const GREENSLEEVES: Song = {
 }
 
 
+
+/**
+ * 奇异恩典 Amazing Grace(公有领域圣诗)——三声部钢琴合奏
+ * C 大调(无黑键),4/4 拍,84 BPM,8 小节。
+ * 编制(全钢琴):
+ *   - 旋律: 经典圣诗旋律
+ *   - 和弦伴奏: 一直循环 C–G 两个和弦的分解琶音
+ *   - 低音: 一直循环单音根音(C/G 交替)
+ * 一人旋律、一人琶音、一人低音,或单人同时听三声部伴奏。
+ */
+const AMAZING_GRACE: Song = {
+  id: 'amazing-grace',
+  title: '奇异恩典 Amazing Grace',
+  bpm: 84,
+  bpi: 4,
+  parts: [
+    {
+      id: 'melody',
+      name: '旋律',
+      instrument: 'piano',
+      notes: [
+        // m1: 1 1 3 1 | 3 5 5 3
+        { note: 60, beat: 0 }, { note: 60, beat: 1 }, { note: 64, beat: 2 }, { note: 60, beat: 3 },
+        { note: 64, beat: 4 }, { note: 67, beat: 5 }, { note: 67, beat: 6 }, { note: 64, beat: 7 },
+        // m2: 1 3 2 1 | 2 3 3
+        { note: 60, beat: 8 }, { note: 64, beat: 9 }, { note: 62, beat: 10 }, { note: 60, beat: 11 },
+        { note: 62, beat: 12 }, { note: 64, beat: 13 }, { note: 64, beat: 14, duration: 2 },
+        // m3: 1 1 3 1 | 3 5 5 3
+        { note: 60, beat: 16 }, { note: 60, beat: 17 }, { note: 64, beat: 18 }, { note: 60, beat: 19 },
+        { note: 64, beat: 20 }, { note: 67, beat: 21 }, { note: 67, beat: 22 }, { note: 64, beat: 23 },
+        // m4: 1 3 2 1 | 2 1 1(长音)
+        { note: 60, beat: 24 }, { note: 64, beat: 25 }, { note: 62, beat: 26 }, { note: 60, beat: 27 },
+        { note: 62, beat: 28 }, { note: 60, beat: 29, duration: 2 }, { note: 60, beat: 31 },
+        // 第二遍 (m5-m8)
+        { note: 60, beat: 32 }, { note: 60, beat: 33 }, { note: 64, beat: 34 }, { note: 60, beat: 35 },
+        { note: 64, beat: 36 }, { note: 67, beat: 37 }, { note: 67, beat: 38 }, { note: 64, beat: 39 },
+        { note: 60, beat: 40 }, { note: 64, beat: 41 }, { note: 62, beat: 42 }, { note: 60, beat: 43 },
+        { note: 62, beat: 44 }, { note: 64, beat: 45 }, { note: 64, beat: 46, duration: 2 },
+        { note: 60, beat: 48 }, { note: 60, beat: 49 }, { note: 64, beat: 50 }, { note: 60, beat: 51 },
+        { note: 64, beat: 52 }, { note: 67, beat: 53 }, { note: 67, beat: 54 }, { note: 64, beat: 55 },
+        { note: 60, beat: 56 }, { note: 64, beat: 57 }, { note: 62, beat: 58 }, { note: 60, beat: 59 },
+        { note: 62, beat: 60 }, { note: 60, beat: 61, duration: 2 },
+      ],
+    },
+    {
+      id: 'chords',
+      name: '和弦伴奏 · C–G 循环',
+      instrument: 'piano',
+      notes: [
+        // 一直循环 C 和 G 两个和弦的分解琶音(每小节 4 音,每拍一个)
+        // m1 C: C E G C'
+        { note: 60, beat: 0 }, { note: 64, beat: 1 }, { note: 67, beat: 2 }, { note: 72, beat: 3 },
+        // m2 G: G B D G
+        { note: 55, beat: 4 }, { note: 59, beat: 5 }, { note: 62, beat: 6 }, { note: 67, beat: 7 },
+        // m3 C
+        { note: 60, beat: 8 }, { note: 64, beat: 9 }, { note: 67, beat: 10 }, { note: 72, beat: 11 },
+        // m4 G
+        { note: 55, beat: 12 }, { note: 59, beat: 13 }, { note: 62, beat: 14 }, { note: 67, beat: 15 },
+        // m5-m8 循环
+        { note: 60, beat: 16 }, { note: 64, beat: 17 }, { note: 67, beat: 18 }, { note: 72, beat: 19 },
+        { note: 55, beat: 20 }, { note: 59, beat: 21 }, { note: 62, beat: 22 }, { note: 67, beat: 23 },
+        { note: 60, beat: 24 }, { note: 64, beat: 25 }, { note: 67, beat: 26 }, { note: 72, beat: 27 },
+        { note: 55, beat: 28 }, { note: 59, beat: 29 }, { note: 62, beat: 30 }, { note: 67, beat: 31 },
+        { note: 60, beat: 32 }, { note: 64, beat: 33 }, { note: 67, beat: 34 }, { note: 72, beat: 35 },
+        { note: 55, beat: 36 }, { note: 59, beat: 37 }, { note: 62, beat: 38 }, { note: 67, beat: 39 },
+        { note: 60, beat: 40 }, { note: 64, beat: 41 }, { note: 67, beat: 42 }, { note: 72, beat: 43 },
+        { note: 55, beat: 44 }, { note: 59, beat: 45 }, { note: 62, beat: 46 }, { note: 67, beat: 47 },
+        { note: 60, beat: 48 }, { note: 64, beat: 49 }, { note: 67, beat: 50 }, { note: 72, beat: 51 },
+        { note: 55, beat: 52 }, { note: 59, beat: 53 }, { note: 62, beat: 54 }, { note: 67, beat: 55 },
+        { note: 60, beat: 56 }, { note: 64, beat: 57 }, { note: 67, beat: 58 }, { note: 72, beat: 59 },
+        { note: 55, beat: 60 }, { note: 59, beat: 61 }, { note: 62, beat: 62 }, { note: 60, beat: 63, duration: 2 },
+      ],
+    },
+    {
+      id: 'bassline',
+      name: '低音 · 根音循环',
+      instrument: 'piano',
+      notes: [
+        // 一直循环单音根音: C / G 每两拍一换
+        { note: 48, beat: 0, duration: 2 }, { note: 48, beat: 2, duration: 2 },
+        { note: 55, beat: 4, duration: 2 }, { note: 55, beat: 6, duration: 2 },
+        { note: 48, beat: 8, duration: 2 }, { note: 48, beat: 10, duration: 2 },
+        { note: 55, beat: 12, duration: 2 }, { note: 55, beat: 14, duration: 2 },
+        { note: 48, beat: 16, duration: 2 }, { note: 48, beat: 18, duration: 2 },
+        { note: 55, beat: 20, duration: 2 }, { note: 55, beat: 22, duration: 2 },
+        { note: 48, beat: 24, duration: 2 }, { note: 48, beat: 26, duration: 2 },
+        { note: 55, beat: 28, duration: 2 }, { note: 55, beat: 30, duration: 2 },
+        { note: 48, beat: 32, duration: 2 }, { note: 48, beat: 34, duration: 2 },
+        { note: 55, beat: 36, duration: 2 }, { note: 55, beat: 38, duration: 2 },
+        { note: 48, beat: 40, duration: 2 }, { note: 48, beat: 42, duration: 2 },
+        { note: 55, beat: 44, duration: 2 }, { note: 55, beat: 46, duration: 2 },
+        { note: 48, beat: 48, duration: 2 }, { note: 48, beat: 50, duration: 2 },
+        { note: 55, beat: 52, duration: 2 }, { note: 55, beat: 54, duration: 2 },
+        { note: 48, beat: 56, duration: 2 }, { note: 48, beat: 58, duration: 2 },
+        { note: 55, beat: 60, duration: 2 }, { note: 48, beat: 62, duration: 2 },
+      ],
+    },
+  ],
+}
+
+
 /** 内置曲库(按 id 索引) */
 export const SONGS: Song[] = [
+  AMAZING_GRACE,
   GREENSLEEVES,
   JINGLE_BELLS,
   CANON,
