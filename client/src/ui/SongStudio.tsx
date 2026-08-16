@@ -248,10 +248,28 @@ export default function SongStudio({
 
       <div className="studio-row studio-import">
         <span className="field-label">导入 ABC 曲谱(简谱文本,自动转钢琴旋律)</span>
+        <input
+          type="file"
+          accept=".abc,.txt,text/plain"
+          className="abc-file-input"
+          data-testid="abc-file"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (!file) return
+            const reader = new FileReader()
+            reader.onload = () => {
+              const text = String(reader.result ?? '')
+              setAbcText(text)
+              setAbcPreview(parseAbc(text))
+            }
+            reader.readAsText(file)
+            e.target.value = ''
+          }}
+        />
         <textarea
           className="studio-json"
           data-testid="abc-input"
-          placeholder={'粘贴 ABC 记谱…\n例如:\nX:1\nT:My Tune\nM:4/4\nL:1/4\nK:C\nC D E F G A B c |'}
+          placeholder={'选择 .abc 文件,或直接粘贴 ABC 记谱…\n例如:\nX:1\nT:My Tune\nM:4/4\nL:1/4\nK:C\nC D E F G A B c |'}
           value={abcText}
           onChange={(e) => {
             setAbcText(e.target.value)

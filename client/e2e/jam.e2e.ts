@@ -841,22 +841,24 @@ test('import an ABC chart: paste → preview → save → appears in the songboo
   const page = await ctx.newPage()
   await createRoom(page, 'AbcImport')
 
-  const abc = `X:1
+  // 通过文件选择器上传 .abc 文件(自动读入并预览)
+  await page.getByTestId('abc-file').setInputFiles({
+    name: 'test-tune.abc',
+    mimeType: 'text/plain',
+    buffer: Buffer.from(`X:1
 T:Test Tune
 M:4/4
 L:1/4
 K:C
-C D E F G A B c |`
-
-  await page.getByTestId('abc-input').fill(abc)
-  await page.getByTestId('abc-preview-btn').click()
+C D E F G A B c |`),
+  })
   await expect(page.getByTestId('abc-preview-info')).toContainText('Test Tune', { timeout: 10_000 })
   await expect(page.getByTestId('abc-preview-info')).toContainText('8 个音符')
 
   await page.getByTestId('abc-save-btn').click()
   // 自定义曲目出现在曲库列表(标题 Test Tune)
   await expect(page.locator('.song-row', { hasText: 'Test Tune' })).toBeVisible({ timeout: 10_000 })
-  console.log('[e2e] ABC import: paste → preview → saved to custom songbook')
+  console.log('[e2e] ABC import: file picker → preview → saved to custom songbook')
   await ctx.close()
 })
 
