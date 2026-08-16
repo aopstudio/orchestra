@@ -70,6 +70,30 @@ V:2
     expect(r!.voices[1]!.every((n) => n.note === 60)).toBe(true)
   })
 
+  it('handles chord marks "G", parentheses (Am), and rests z', () => {
+    const abc = `X:1
+T:ChordMarks
+M:3/4
+L:1/8
+K:G
+V:1
+"G"G4G2| "D"F4D2| "D"A4z2| ("Am"d2c2)"(D7)"A2|`
+    const r = parseAbc(abc)
+    expect(r).not.toBeNull()
+    const v = r!.voices[0]!
+    // "G"G4G2 → G4(2拍) G2(1拍); "D"F4D2 → F#4 D2(K:G 默认 F#)
+    expect(v[0]).toEqual({ note: 67, beat: 0, duration: 2 })
+    expect(v[1]).toEqual({ note: 67, beat: 2, duration: 1 })
+    expect(v[2]).toEqual({ note: 66, beat: 3, duration: 2 }) // F#4
+    expect(v[3]).toEqual({ note: 62, beat: 5, duration: 1 })
+    // "D"A4z2 → A4(2拍) + z2 休止(L:1/8 下 z2=1拍) → 下一音 @9
+    expect(v[4]).toEqual({ note: 69, beat: 6, duration: 2 })
+    // ("Am"d2c2)"(D7)"A2 → d2 c2 A2(小写 d=c=D5),各 1 拍,在 beat 9,10,11
+    expect(v[5]).toEqual({ note: 74, beat: 9, duration: 1 })
+    expect(v[6]).toEqual({ note: 72, beat: 10, duration: 1 })
+    expect(v[7]).toEqual({ note: 69, beat: 11, duration: 1 })
+  })
+
   it('returns null for text without notes', () => {
     expect(parseAbc('X:1\nT:No notes\nM:4/4\nK:C\n| z z z z |')).toBeNull()
   })

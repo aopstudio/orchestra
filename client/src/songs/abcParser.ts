@@ -74,7 +74,7 @@ export function parseAbc(abcText: string): AbcParseResult | null {
   for (const line of lines) {
     const h = line.match(/^([A-Za-z]):\s*(.*)$/)
     if (h) {
-      // V: 是声部切换标记,不是头字段 —— 保留到音乐流
+      // V: 是声部切换标记;w:/W: 是歌词行 —— 都忽略/保留到音乐流
       if (h[1] === 'V') {
         music.push(line.trim())
       } else if (h[1] === 'K' || h[1] === 'M' || h[1] === 'L' || h[1] === 'T') {
@@ -93,32 +93,38 @@ export function parseAbc(abcText: string): AbcParseResult | null {
 
   interface VoiceState {
     notes: SongNote[]
+    beat: number // 当前拍位(音符与休止都推进)
     repeatInner: SongNote[] | null
     repeatStart: number
-    repeatOffset: number
+    repeatLen: number
   }
-  const voices: VoiceState[] = [{ notes: [], repeatInner: null, repeatStart: 0, repeatOffset: 0 }]
+  const voices: VoiceState[] = [{ notes: [], beat: 0, repeatInner: null, repeatStart: 0, repeatLen: 0 }]
   let cur = 0
+
+  const pushEntry = (v: VoiceState, entry: SongNote): void => {
+    if (v.repeatInner !== null) v.repeatInner.push(entry)
+    v.notes.push(entry)
+  }
 
   for (const line of music) {
     const vMatch = line.match(/^V:\s*(\d+)/i)
     if (vMatch) {
       const idx = Number(vMatch[1]) - 1
       while (voices.length <= idx) {
-        voices.push({ notes: [], repeatInner: null, repeatStart: 0, repeatOffset: 0 })
+        voices.push({ notes: [], beat: 0, repeatInner: null, repeatStart: 0, repeatLen: 0 })
       }
       cur = idx
       continue
     }
-    const tokens = line.match(/(?:\[[^\]\s]+\]|\|[1-2]|:\||\||[^|\s]+)/g) ?? []
+    const tokens = line.match(/(?:\[[^\]\s]+\]|"[^"]*"|\([^)]*\)|\|[1-2]|:\||\||[^|\s]+)/g) ?? []
     const v = voices[cur] ?? voices[0]!
     for (const tok of tokens) {
       if (tok === '|' || tok.startsWith('|1') || tok.startsWith('|2')) continue
       if (tok === ':|') {
         if (v.repeatInner !== null) {
-          const len = beatOf(v) - v.repeatStart
+          v.repeatLen = v.beat - v.repeatStart
           for (const n of v.repeatInner) {
-            v.notes.push({ ...n, beat: n.beat + len })
+            pushEntry(v, { ...n, beat: n.beat + v.repeatLen })
           }
           v.repeatInner = null
         }
@@ -126,29 +132,37 @@ export function parseAbc(abcText: string): AbcParseResult | null {
       }
       if (tok === '|:') {
         v.repeatInner = []
-        v.repeatStart = beatOf(v)
+        v.repeatStart = v.beat
         continue
       }
-      // 和弦 [...] 取音高最低的音(适配每拍单音)
-      let core: string
+      // 方括号 [CEG] = 同时多音 → 取音高最低的单音(适配每拍单音)
       const chord = tok.match(/^\[([^\]\s]+)\]/)
       if (chord && chord[1]) {
         const sorted = chord[1].split(/\s+/).sort(
           (a, b) => (abcTokenToMidi(a, acc) ?? 999) - (abcTokenToMidi(b, acc) ?? 999),
         )
-        core = sorted[0] ?? ''
-      } else {
-        core = tok.replace(/[~()]/g, '')
+        const lowest = sorted[0] ?? ''
+        const d = abcDurBeats(lowest, lBeats)
+        const midi = abcTokenToMidi(lowest, acc)
+        if (midi !== null) pushEntry(v, { note: midi, beat: v.beat, duration: Math.max(d, 0.001) })
+        v.beat += d
+        continue
       }
-      const noteMatch = core.match(/^([_^=]?)([A-Ga-g])([',]*)(\d*)(\/\d*)?/)
-      if (!noteMatch) continue
-      const [, , , , num = '', den = ''] = noteMatch
-      const mult = (num ? Number(num) : 1) / (den ? Number(den.replace('/', '')) : 1) || 1
-      const durBeats = mult * lBeats
-      const midi = abcTokenToMidi(core, acc) ?? 0
-      const entry: SongNote = { note: midi, beat: beatOf(v), duration: Math.max(durBeats, 0.001) }
-      if (v.repeatInner !== null) v.repeatInner.push(entry)
-      v.notes.push(entry)
+      // 引号 "G" / 括号 (Am) 是和弦标记/分组 → 剥离后可能含多个音符
+      const core = tok.replace(/"[^"]*"/g, '').replace(/[()]/g, '').replace(/[~]/g, '')
+      const parts = core.match(/[_^=]?[A-Ga-g][',]*\d*\/?\d*|[zZ]\d*\/?\d*/g)
+      if (!parts) continue
+      for (const p of parts) {
+        const d = abcDurBeats(p, lBeats)
+        if (/^[zZ]/.test(p)) {
+          // 休止: 占时值但不发声
+          v.beat += d
+          continue
+        }
+        const midi = abcTokenToMidi(p, acc)
+        if (midi !== null) pushEntry(v, { note: midi, beat: v.beat, duration: Math.max(d, 0.001) })
+        v.beat += d
+      }
     }
   }
 
@@ -157,11 +171,14 @@ export function parseAbc(abcText: string): AbcParseResult | null {
   return { title: headers.T ?? '导入曲目', bpi, voices: voices.map((v) => v.notes) }
 }
 
-/** 当前声部已累计的拍数(最后音符的结束拍)。 */
-function beatOf(v: { notes: SongNote[] }): number {
-  const last = v.notes[v.notes.length - 1]
-  return last === undefined ? 0 : last.beat + (last.duration ?? 1)
+/** 单个 ABC 音符/休止 token 的时值(拍)。 */
+function abcDurBeats(token: string, lBeats: number): number {
+  const m = token.match(/(\d*)(\/\d*)?$/)
+  const num = m?.[1] ? Number(m[1]) : 1
+  const den = m?.[2] ? Number(m[2].replace('/', '')) : 1
+  return (num / den) * lBeats
 }
+
 
 /**
  * 多声部音符 → 可保存的 Song(每个声部一个钢琴 part,自动整体移调到可演奏范围)。
