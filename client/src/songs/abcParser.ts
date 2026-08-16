@@ -164,14 +164,12 @@ function beatOf(v: { notes: SongNote[] }): number {
 }
 
 /**
- * ABC → 可保存的 Song(每个声部一个钢琴 part,自动整体移调到可演奏范围)。
- * 移调失败(音域太宽)或解析失败返回 null。
+ * 多声部音符 → 可保存的 Song(每个声部一个钢琴 part,自动整体移调到可演奏范围)。
+ * 移调失败(音域太宽)返回 null。
  */
-export function abcToSong(abcText: string): Song | null {
-  const parsed = parseAbc(abcText)
-  if (parsed === null) return null
-
-  const allNotes = parsed.voices.flat()
+export function buildSongFromVoices(title: string, bpi: number, voices: SongNote[][], idPrefix = 'abc'): Song | null {
+  const allNotes = voices.flat()
+  if (allNotes.length === 0) return null
   const lo = Math.min(...allNotes.map((n) => n.note))
   const hi = Math.max(...allNotes.map((n) => n.note))
   if (hi - lo > PLAYABLE_HIGH - PLAYABLE_LOW) return null // 音域过宽
@@ -184,17 +182,27 @@ export function abcToSong(abcText: string): Song | null {
   }
   if (lo + shift < PLAYABLE_LOW || hi + shift > PLAYABLE_HIGH) return null
 
-  const parts = parsed.voices.map((notes, i) => ({
+  const parts = voices.map((notes, i) => ({
     id: i === 0 ? 'melody' : `part${i + 1}`,
     name: i === 0 ? '旋律' : `声部 ${i + 1}`,
     instrument: 'piano' as const,
     notes: notes.map((n) => ({ ...n, note: n.note + shift })),
   }))
   return {
-    id: `abc-${Date.now().toString(36)}`,
-    title: parsed.title,
+    id: `${idPrefix}-${Date.now().toString(36)}`,
+    title,
     bpm: 90,
-    bpi: parsed.bpi,
+    bpi,
     parts,
   }
+}
+
+/**
+ * ABC → 可保存的 Song(每个声部一个钢琴 part,自动整体移调到可演奏范围)。
+ * 移调失败(音域太宽)或解析失败返回 null。
+ */
+export function abcToSong(abcText: string): Song | null {
+  const parsed = parseAbc(abcText)
+  if (parsed === null) return null
+  return buildSongFromVoices(parsed.title, parsed.bpi, parsed.voices)
 }

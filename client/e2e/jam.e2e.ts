@@ -862,6 +862,41 @@ C D E F G A B c |`),
   await ctx.close()
 })
 
+test('import a MusicXML chart via the file picker (multi-part → multi-voice)', async ({
+  browser,
+}) => {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  await createRoom(page, 'XmlImport')
+
+  const xml = `<?xml version="1.0"?>
+<score-partwise version="3.0">
+  <work><work-title>XML Duet</work-title></work>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+    <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+    <note><pitch><step>G</step><octave>4</octave></pitch><duration>2</duration></note>
+  </measure></part>
+  <part id="P2"><measure number="1">
+    <note><pitch><step>C</step><octave>3</octave></pitch><duration>4</duration></note>
+  </measure></part>
+</score-partwise>`
+
+  await page.getByTestId('abc-file').setInputFiles({
+    name: 'duet.xml',
+    mimeType: 'application/xml',
+    buffer: Buffer.from(xml),
+  })
+  await expect(page.getByTestId('abc-preview-info')).toContainText('XML Duet', { timeout: 10_000 })
+  await expect(page.getByTestId('abc-preview-info')).toContainText('2 个声部', { timeout: 10_000 })
+
+  await page.getByTestId('abc-save-btn').click()
+  await expect(page.locator('.song-row', { hasText: 'XML Duet' })).toBeVisible({ timeout: 10_000 })
+  console.log('[e2e] MusicXML import: file picker → preview (2 voices) → saved')
+  await ctx.close()
+})
+
 test('renaming yourself in-room syncs to peers and the part-claim table (blur commits, no extra UI)', async ({
   browser,
 }) => {

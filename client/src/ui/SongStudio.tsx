@@ -9,6 +9,7 @@
 
 import { useState } from 'react'
 import { parseAbc, type AbcParseResult } from '../songs/abcParser'
+import { parseMusicXml } from '../songs/musicXmlParser'
 
 export interface SongStudioProps {
   enabled: boolean
@@ -24,6 +25,8 @@ export interface SongStudioProps {
   onImport: (text: string) => boolean
   /** 导入 ABC 曲谱(解析成自定义歌曲)。 */
   onImportAbc?: (text: string) => boolean
+  /** 导入 MusicXML 曲谱。 */
+  onImportMusicXml?: (text: string) => boolean
   /** 最近一次导出文本(用于展示与复制)。 */
   exportText: string | null
   /** 分享到服务器(Phase 3): POST 当前曲目,返回分享码。 */
@@ -49,6 +52,7 @@ export default function SongStudio({
   onSave,
   onImport,
   onImportAbc,
+  onImportMusicXml,
   exportText,
   onShare,
   shareId,
@@ -62,6 +66,20 @@ export default function SongStudio({
   const [importResult, setImportResult] = useState<'ok' | 'fail' | null>(null)
   const [abcText, setAbcText] = useState('')
   const [abcPreview, setAbcPreview] = useState<AbcParseResult | 'fail' | null>(null)
+
+  /** 按内容自动识别 MusicXML 或 ABC 并解析(供文件选择与手动粘贴共用)。 */
+  const onImportChart = (text: string): boolean => {
+    const trimmed = text.trim()
+    const isXml = trimmed.startsWith('<?xml') || trimmed.startsWith('<score-partwise') || trimmed.startsWith('<score-timewise')
+    return isXml ? (onImportMusicXml?.(text) ?? false) : (onImportAbc?.(text) ?? false)
+  }
+
+  const parseChart = (text: string): AbcParseResult | 'fail' => {
+    const trimmed = text.trim()
+    const isXml = trimmed.startsWith('<?xml') || trimmed.startsWith('<score-partwise') || trimmed.startsWith('<score-timewise')
+    const result = isXml ? parseMusicXml(text) : parseAbc(text)
+    return result === null ? 'fail' : result
+  }
   const [shareCodeInput, setShareCodeInput] = useState('')
   const [fetchResult, setFetchResult] = useState<'ok' | 'fail' | null>(null)
 
@@ -246,7 +264,7 @@ export default function SongStudio({
         <span className="field-label">导入 ABC 曲谱(简谱文本,自动转钢琴旋律)</span>
         <input
           type="file"
-          accept=".abc,.txt,text/plain"
+          accept=".abc,.xml,.txt,text/plain,application/xml"
           className="abc-file-input"
           data-testid="abc-file"
           onChange={(e) => {
@@ -256,7 +274,7 @@ export default function SongStudio({
             reader.onload = () => {
               const text = String(reader.result ?? '')
               setAbcText(text)
-              setAbcPreview(parseAbc(text))
+              setAbcPreview(parseChart(text))
             }
             reader.readAsText(file)
             e.target.value = ''
@@ -265,7 +283,7 @@ export default function SongStudio({
         <textarea
           className="studio-json"
           data-testid="abc-input"
-          placeholder={'选择 .abc 文件,或直接粘贴 ABC 记谱…\n例如:\nX:1\nT:My Tune\nM:4/4\nL:1/4\nK:C\nC D E F G A B c |'}
+          placeholder={'选择 .abc / .xml(MusicXML) 文件,或直接粘贴…\nABC 例:\nX:1\nT:My Tune\nM:4/4\nL:1/4\nK:C\nC D E F G A B c |'}
           value={abcText}
           onChange={(e) => {
             setAbcText(e.target.value)
@@ -278,7 +296,7 @@ export default function SongStudio({
             className="btn btn-import"
             data-testid="abc-preview-btn"
             disabled={!enabled || abcText.trim() === ''}
-            onClick={() => setAbcPreview(parseAbc(abcText))}
+            onClick={() => setAbcPreview(parseChart(abcText))}
           >
             解析预览
           </button>
@@ -298,7 +316,7 @@ export default function SongStudio({
             data-testid="abc-save-btn"
             disabled={!enabled || abcPreview === null || abcPreview === 'fail'}
             onClick={() => {
-              if (onImportAbc?.(abcText)) {
+              if (onImportChart(abcText)) {
                 setAbcPreview(null)
                 setAbcText('')
               } else {

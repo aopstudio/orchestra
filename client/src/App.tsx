@@ -40,6 +40,7 @@ import {
   saveCustomSongs,
 } from './songs/customSongs'
 import { abcToSong } from './songs/abcParser'
+import { musicXmlToSong } from './songs/musicXmlParser'
 import StatusPanel, { type ConnState, type Peer } from './ui/StatusPanel'
 import MixerPanel from './ui/MixerPanel'
 import InstrumentPicker from './ui/InstrumentPicker'
@@ -991,6 +992,16 @@ export default function App() {
     return true
   }
 
+  /** 导入 MusicXML 曲谱(每个 part 一个钢琴声部,自动移调);成功返回 true。 */
+  const handleImportMusicXml = (text: string): boolean => {
+    const song = musicXmlToSong(text)
+    if (song === null) return false
+    const next = [...customSongs, song]
+    setCustomSongs(next)
+    saveCustomSongs(next)
+    return true
+  }
+
   /** 把当前曲目 POST 到服务器换取分享码(Phase 3)。 */
   const handleShareSong = async (): Promise<void> => {
     if (shareSong === null) return
@@ -1450,6 +1461,7 @@ export default function App() {
             onSave={handleSaveRecording}
             onImport={handleImportSong}
             onImportAbc={handleImportAbc}
+            onImportMusicXml={handleImportMusicXml}
             exportText={exportText}
             onShare={() => handleShareSong()}
             shareId={shareId}
