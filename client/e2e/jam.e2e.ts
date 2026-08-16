@@ -897,6 +897,34 @@ test('import a MusicXML chart via the file picker (multi-part → multi-voice)',
   await ctx.close()
 })
 
+test('delete a custom chart from the songbook', async ({ browser }) => {
+  const ctx = await browser.newContext()
+  const page = await ctx.newPage()
+  await createRoom(page, 'DelSong')
+
+  // 先导入一首自定义曲目
+  await page.getByTestId('abc-file').setInputFiles({
+    name: 'del.abc',
+    mimeType: 'text/plain',
+    buffer: Buffer.from(`X:1
+T:To Delete
+M:4/4
+L:1/4
+K:C
+C D E F | G A B c |`),
+  })
+  await page.getByTestId('abc-save-btn').click()
+  const row = page.locator('.song-row', { hasText: 'To Delete' })
+  await expect(row).toBeVisible({ timeout: 10_000 })
+
+  // 删除按钮(id 随机,用行内的 ✕)
+  const wrap = page.locator('.song-row-wrap', { has: row })
+  await wrap.getByTestId(/song-delete-/).click()
+  await expect(row).toHaveCount(0)
+  console.log('[e2e] custom song deleted from the songbook')
+  await ctx.close()
+})
+
 test('renaming yourself in-room syncs to peers and the part-claim table (blur commits, no extra UI)', async ({
   browser,
 }) => {

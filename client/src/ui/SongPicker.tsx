@@ -21,6 +21,8 @@ export interface SongPickerProps {
   /** Currently selected song id (room-wide; driven by the host's pick) or null. */
   selectedSongId: string | null
   onSelectSong: (id: string) => void
+  /** 删除自定义曲目(仅对录制/导入的歌曲显示)。 */
+  onDeleteSong?: (songId: string) => void
   /** Currently armed part id (or null before a pick). */
   selectedPartId: string | null
   onSelectPart: (partId: string) => void
@@ -80,6 +82,7 @@ export default function SongPicker({
   songs,
   selectedSongId,
   onSelectSong,
+  onDeleteSong,
   selectedPartId,
   onSelectPart,
   enabled,
@@ -157,20 +160,38 @@ export default function SongPicker({
           <div className="songbook-list" role="radiogroup" aria-label="Songs">
         {songs.map((song) => {
           const active = song.id === selectedSongId
+          // 自定义曲目(录制/ABC/MusicXML 导入)才显示删除按钮
+          const isCustom =
+            song.id.startsWith('custom-') || song.id.startsWith('abc-') || song.id.startsWith('mxml-')
           return (
-            <button
-              key={song.id}
-              type="button"
-              className={active ? 'song-row song-row-active' : 'song-row'}
-              data-testid={`song-${song.id}`}
-              disabled={!enabled || !canSelectSong}
-              aria-pressed={active}
-              title={canSelectSong ? (active ? '再点一下取消选曲' : '选择这首歌(全房间同步)') : '仅房主可选曲'}
-              onClick={() => onSelectSong(song.id)}
-            >
-              <span className="song-row-name">{song.title}</span>
-              <span className="song-row-meta">{songMeta(song)}</span>
-            </button>
+            <div key={song.id} className="song-row-wrap">
+              <button
+                type="button"
+                className={active ? 'song-row song-row-active' : 'song-row'}
+                data-testid={`song-${song.id}`}
+                disabled={!enabled || !canSelectSong}
+                aria-pressed={active}
+                title={canSelectSong ? (active ? '再点一下取消选曲' : '选择这首歌(全房间同步)') : '仅房主可选曲'}
+                onClick={() => onSelectSong(song.id)}
+              >
+                <span className="song-row-name">{song.title}</span>
+                <span className="song-row-meta">{songMeta(song)}</span>
+              </button>
+              {isCustom && onDeleteSong !== undefined && (
+                <button
+                  type="button"
+                  className="song-delete"
+                  data-testid={`song-delete-${song.id}`}
+                  title="删除这首自定义曲目"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDeleteSong(song.id)
+                  }}
+                >
+                  ✕
+                </button>
+              )}
+            </div>
           )
         })}
       </div>

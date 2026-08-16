@@ -2075,6 +2075,30 @@ button {
   gap: var(--s-2);
 }
 
+.song-row-wrap {
+  position: relative;
+}
+
+.song-delete {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  appearance: none;
+  border: 1px solid rgba(255, 93, 93, 0.4);
+  background: rgba(255, 93, 93, 0.08);
+  color: var(--red, #ff5d5d);
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 1;
+  padding: 3px 6px;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.song-delete:hover {
+  background: rgba(255, 93, 93, 0.2);
+}
+
 .song-row {
   appearance: none;
   display: flex;

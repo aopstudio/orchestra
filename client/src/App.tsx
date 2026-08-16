@@ -972,6 +972,20 @@ export default function App() {
     playReplay(ctx, inst, rec.notes, bpmRef.current, instrument)
   }
 
+  /** 删除自定义曲目(录制/ABC/MusicXML 导入)。 */
+  const handleDeleteSong = (songId: string): void => {
+    const next = customSongs.filter((song) => song.id !== songId)
+    setCustomSongs(next)
+    saveCustomSongs(next)
+    // 删除的是当前选中的歌 → 清空本地选中(房间状态由服务器编排驱动)
+    if (selectedSong?.id === songId) {
+      setSelectedSong(null)
+      setSelectedPart(null)
+      selectedPartRef.current = null
+      judgeRef.current = null
+    }
+  }
+
   /** 导入朋友分享的 JSON 曲目;成功返回 true。 */
   const handleImportSong = (text: string): boolean => {
     const song = importSongJson(text)
@@ -1427,6 +1441,7 @@ export default function App() {
             songs={[...SONGS, ...customSongs]}
             selectedSongId={selectedSong?.id ?? null}
             onSelectSong={handleSelectSong}
+            onDeleteSong={handleDeleteSong}
             selectedPartId={selectedPart?.id ?? null}
             onSelectPart={handleSelectPart}
             enabled={connState === 'connected'}
