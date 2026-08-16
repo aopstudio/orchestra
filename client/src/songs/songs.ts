@@ -1043,8 +1043,37 @@ const AMAZING_GRACE: Song = {
 }
 
 
+
+/**
+ * 红河谷 Red River Valley(公有领域美国民谣)——双声部
+ * C 大调,2/4 拍,100 BPM。
+ * 编制(钢琴): 旋律 + 分解和弦伴奏(自动生成的双声部编配)。
+ */
+const RED_RIVER_VALLEY: Song = {
+  id: 'red-river-valley',
+  title: '红河谷 Red River Valley',
+  bpm: 100,
+  bpi: 2,
+  parts: [
+    {
+      id: 'melody',
+      name: '旋律',
+      instrument: 'piano',
+      notes: [{ note: 60, beat: 0.0, duration: 0.5 }, { note: 65, beat: 0.5, duration: 0.5 }, { note: 69, beat: 1.0, duration: 0.5 }, { note: 69, beat: 1.5, duration: 0.5 }, { note: 69, beat: 2.0, duration: 0.5 }, { note: 69, beat: 2.5, duration: 0.5 }, { note: 69, beat: 3.0, duration: 1.0 }, { note: 67, beat: 4.0, duration: 0.5 }, { note: 69, beat: 4.5, duration: 0.5 }, { note: 67, beat: 5.0, duration: 0.5 }, { note: 65, beat: 5.5, duration: 1.5 }, { note: 65, beat: 7.0, duration: 1.0 }, { note: 60, beat: 8.0, duration: 0.5 }, { note: 65, beat: 8.5, duration: 0.5 }, { note: 69, beat: 9.0, duration: 0.5 }, { note: 69, beat: 9.5, duration: 0.5 }, { note: 65, beat: 10.0, duration: 0.5 }, { note: 69, beat: 10.5, duration: 0.5 }, { note: 72, beat: 11.0, duration: 0.5 }, { note: 72, beat: 11.5, duration: 0.5 }, { note: 69, beat: 12.0, duration: 1.0 }, { note: 69, beat: 13.0, duration: 0.5 }, { note: 67, beat: 13.5, duration: 2.0 }, { note: 64, beat: 15.5, duration: 2.0 }, { note: 60, beat: 17.5, duration: 2.0 }, { note: 69, beat: 19.5, duration: 1.0 }, { note: 67, beat: 20.5, duration: 0.5 }, { note: 64, beat: 21.0, duration: 0.5 }, { note: 60, beat: 21.5, duration: 0.5 }, { note: 69, beat: 22.0, duration: 1.0 }, { note: 72, beat: 23.0, duration: 0.5 }, { note: 69, beat: 23.5, duration: 1.0 }, { note: 69, beat: 24.5, duration: 0.5 }, { note: 69, beat: 25.0, duration: 0.5 }, { note: 69, beat: 25.5, duration: 0.5 }, { note: 67, beat: 26.0, duration: 0.5 }, { note: 65, beat: 26.5, duration: 1.0 }, { note: 62, beat: 27.5, duration: 1.0 }, { note: 60, beat: 28.5, duration: 1.0 }, { note: 67, beat: 29.5, duration: 0.5 }, { note: 62, beat: 30.0, duration: 1.0 }, { note: 60, beat: 31.0, duration: 0.5 }, { note: 69, beat: 31.5, duration: 0.5 }, { note: 62, beat: 32.0, duration: 1.0 }, { note: 60, beat: 33.0, duration: 0.5 }, { note: 72, beat: 33.5, duration: 0.5 }, { note: 69, beat: 34.0, duration: 1.0 }, { note: 69, beat: 35.0, duration: 1.0 }, { note: 69, beat: 36.0, duration: 1.0 }, { note: 62, beat: 37.0, duration: 1.0 }, { note: 64, beat: 38.0, duration: 0.5 }, { note: 62, beat: 38.5, duration: 0.5 }, { note: 60, beat: 39.0, duration: 1.0 }, { note: 64, beat: 40.0, duration: 0.5 }, { note: 65, beat: 40.5, duration: 0.5 }, { note: 67, beat: 41.0, duration: 1.0 }, { note: 69, beat: 42.0, duration: 0.5 }, { note: 67, beat: 42.5, duration: 0.5 }, { note: 65, beat: 43.0, duration: 2.0 }, { note: 60, beat: 45.0, duration: 2.0 }, { note: 57, beat: 47.0, duration: 2.0 }, { note: 65, beat: 49.0, duration: 0.5 }, { note: 60, beat: 49.5, duration: 0.5 }, { note: 57, beat: 50.0, duration: 0.5 }],
+    },
+    {
+      id: 'accomp',
+      name: '伴奏 · 分解和弦',
+      instrument: 'piano',
+      notes: [{ note: 60, beat: 0.0, duration: 1.0 }, { note: 64, beat: 1.0, duration: 1.0 }, { note: 67, beat: 2.0, duration: 1.0 }, { note: 64, beat: 3.0, duration: 1.0 }, { note: 69, beat: 4.0, duration: 1.0 }, { note: 72, beat: 5.0, duration: 1.0 }, { note: 76, beat: 6.0, duration: 1.0 }, { note: 72, beat: 7.0, duration: 1.0 }, { note: 65, beat: 8.0, duration: 1.0 }, { note: 69, beat: 9.0, duration: 1.0 }, { note: 72, beat: 10.0, duration: 1.0 }, { note: 69, beat: 11.0, duration: 1.0 }, { note: 60, beat: 12.0, duration: 1.0 }, { note: 64, beat: 13.0, duration: 1.0 }, { note: 67, beat: 14.0, duration: 1.0 }, { note: 64, beat: 15.0, duration: 1.0 }, { note: 65, beat: 16.0, duration: 1.0 }, { note: 69, beat: 17.0, duration: 1.0 }, { note: 72, beat: 18.0, duration: 1.0 }, { note: 69, beat: 19.0, duration: 1.0 }, { note: 69, beat: 20.0, duration: 1.0 }, { note: 72, beat: 21.0, duration: 1.0 }, { note: 76, beat: 22.0, duration: 1.0 }, { note: 72, beat: 23.0, duration: 1.0 }, { note: 67, beat: 24.0, duration: 1.0 }, { note: 71, beat: 25.0, duration: 1.0 }, { note: 74, beat: 26.0, duration: 1.0 }, { note: 71, beat: 27.0, duration: 1.0 }, { note: 64, beat: 28.0, duration: 1.0 }, { note: 67, beat: 29.0, duration: 1.0 }, { note: 71, beat: 30.0, duration: 1.0 }, { note: 67, beat: 31.0, duration: 1.0 }, { note: 60, beat: 32.0, duration: 1.0 }, { note: 64, beat: 33.0, duration: 1.0 }, { note: 67, beat: 34.0, duration: 1.0 }, { note: 64, beat: 35.0, duration: 1.0 }, { note: 69, beat: 36.0, duration: 1.0 }, { note: 62, beat: 37.0, duration: 1.0 }, { note: 65, beat: 38.0, duration: 1.0 }, { note: 62, beat: 39.0, duration: 1.0 }, { note: 69, beat: 40.0, duration: 1.0 }, { note: 62, beat: 41.0, duration: 1.0 }, { note: 65, beat: 42.0, duration: 1.0 }, { note: 62, beat: 43.0, duration: 1.0 }, { note: 69, beat: 44.0, duration: 1.0 }, { note: 72, beat: 45.0, duration: 1.0 }, { note: 76, beat: 46.0, duration: 1.0 }, { note: 72, beat: 47.0, duration: 1.0 }, { note: 65, beat: 48.0, duration: 1.0 }, { note: 69, beat: 49.0, duration: 1.0 }, { note: 72, beat: 50.0, duration: 1.0 }, { note: 69, beat: 51.0, duration: 1.0 }, { note: 60, beat: 52.0, duration: 1.0 }, { note: 62, beat: 53.0, duration: 1.0 }, { note: 67, beat: 54.0, duration: 1.0 }, { note: 62, beat: 55.0, duration: 1.0 }, { note: 60, beat: 56.0, duration: 1.0 }, { note: 62, beat: 57.0, duration: 1.0 }, { note: 67, beat: 58.0, duration: 1.0 }, { note: 62, beat: 59.0, duration: 1.0 }, { note: 60, beat: 60.0, duration: 1.0 }, { note: 62, beat: 61.0, duration: 1.0 }, { note: 67, beat: 62.0, duration: 1.0 }, { note: 62, beat: 63.0, duration: 1.0 }, { note: 62, beat: 64.0, duration: 1.0 }, { note: 65, beat: 65.0, duration: 1.0 }, { note: 69, beat: 66.0, duration: 1.0 }, { note: 65, beat: 67.0, duration: 1.0 }, { note: 60, beat: 68.0, duration: 1.0 }, { note: 64, beat: 69.0, duration: 1.0 }, { note: 67, beat: 70.0, duration: 1.0 }, { note: 64, beat: 71.0, duration: 1.0 }, { note: 64, beat: 72.0, duration: 1.0 }, { note: 67, beat: 73.0, duration: 1.0 }, { note: 71, beat: 74.0, duration: 1.0 }, { note: 67, beat: 75.0, duration: 1.0 }, { note: 65, beat: 76.0, duration: 1.0 }, { note: 69, beat: 77.0, duration: 1.0 }, { note: 72, beat: 78.0, duration: 1.0 }, { note: 69, beat: 79.0, duration: 1.0 }, { note: 60, beat: 80.0, duration: 1.0 }, { note: 64, beat: 81.0, duration: 1.0 }, { note: 67, beat: 82.0, duration: 1.0 }, { note: 64, beat: 83.0, duration: 1.0 }, { note: 57, beat: 84.0, duration: 1.0 }, { note: 60, beat: 85.0, duration: 1.0 }, { note: 64, beat: 86.0, duration: 1.0 }, { note: 60, beat: 87.0, duration: 1.0 }, { note: 57, beat: 88.0, duration: 1.0 }, { note: 60, beat: 89.0, duration: 1.0 }, { note: 64, beat: 90.0, duration: 1.0 }, { note: 60, beat: 91.0, duration: 1.0 }],
+    },
+  ],
+}
+
+
 /** 内置曲库(按 id 索引) */
 export const SONGS: Song[] = [
+  RED_RIVER_VALLEY,
   AMAZING_GRACE,
   GREENSLEEVES,
   JINGLE_BELLS,
