@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react'
-import { parseAbc } from '../songs/abcParser'
+import { parseAbc, type AbcParseResult } from '../songs/abcParser'
 
 export interface SongStudioProps {
   enabled: boolean
@@ -61,11 +61,7 @@ export default function SongStudio({
   const [importText, setImportText] = useState('')
   const [importResult, setImportResult] = useState<'ok' | 'fail' | null>(null)
   const [abcText, setAbcText] = useState('')
-  const [abcPreview, setAbcPreview] = useState<{
-    title: string
-    bpi: number
-    notes: Array<{ note: number; beat: number; duration?: number }>
-  } | 'fail' | null>(null)
+  const [abcPreview, setAbcPreview] = useState<AbcParseResult | 'fail' | null>(null)
   const [shareCodeInput, setShareCodeInput] = useState('')
   const [fetchResult, setFetchResult] = useState<'ok' | 'fail' | null>(null)
 
@@ -288,7 +284,7 @@ export default function SongStudio({
           </button>
           {abcPreview !== null && abcPreview !== 'fail' && (
             <span className="studio-hint ok" data-testid="abc-preview-info">
-              「{abcPreview.title}」· {abcPreview.bpi} 拍/小节 · {abcPreview.notes.length} 个音符 · 将移调入键盘范围
+              「{abcPreview.title}」· {abcPreview.bpi} 拍/小节 · {abcPreview.voices.length} 个声部 · {abcPreview.voices.reduce((s, v) => s + v.length, 0)} 个音符
             </span>
           )}
           {abcPreview === 'fail' && (

@@ -132,7 +132,7 @@ export function parseAbc(abcText: string): AbcParseResult | null {
       // 和弦 [...] 取音高最低的音(适配每拍单音)
       let core: string
       const chord = tok.match(/^\[([^\]\s]+)\]/)
-      if (chord) {
+      if (chord && chord[1]) {
         const sorted = chord[1].split(/\s+/).sort(
           (a, b) => (abcTokenToMidi(a, acc) ?? 999) - (abcTokenToMidi(b, acc) ?? 999),
         )
