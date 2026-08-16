@@ -8,6 +8,7 @@
  */
 
 import { useState } from 'react'
+import { parseAbc } from '../songs/abcParser'
 
 export interface SongStudioProps {
   enabled: boolean
@@ -21,6 +22,8 @@ export interface SongStudioProps {
   onSave: (title: string) => void
   /** 导入 JSON 文本;返回是否成功。 */
   onImport: (text: string) => boolean
+  /** 导入 ABC 曲谱(解析成自定义歌曲)。 */
+  onImportAbc?: (text: string) => boolean
   /** 最近一次导出文本(用于展示与复制)。 */
   exportText: string | null
   /** 分享到服务器(Phase 3): POST 当前曲目,返回分享码。 */
@@ -45,6 +48,7 @@ export default function SongStudio({
   recordedCount,
   onSave,
   onImport,
+  onImportAbc,
   exportText,
   onShare,
   shareId,
@@ -56,6 +60,12 @@ export default function SongStudio({
   const [title, setTitle] = useState('我的新曲')
   const [importText, setImportText] = useState('')
   const [importResult, setImportResult] = useState<'ok' | 'fail' | null>(null)
+  const [abcText, setAbcText] = useState('')
+  const [abcPreview, setAbcPreview] = useState<{
+    title: string
+    bpi: number
+    notes: Array<{ note: number; beat: number; duration?: number }>
+  } | 'fail' | null>(null)
   const [shareCodeInput, setShareCodeInput] = useState('')
   const [fetchResult, setFetchResult] = useState<'ok' | 'fail' | null>(null)
 
@@ -234,6 +244,57 @@ export default function SongStudio({
             JSON 无效或结构不正确
           </span>
         )}
+      </div>
+
+      <div className="studio-row studio-import">
+        <span className="field-label">导入 ABC 曲谱(简谱文本,自动转钢琴旋律)</span>
+        <textarea
+          className="studio-json"
+          data-testid="abc-input"
+          placeholder={'粘贴 ABC 记谱…\n例如:\nX:1\nT:My Tune\nM:4/4\nL:1/4\nK:C\nC D E F G A B c |'}
+          value={abcText}
+          onChange={(e) => {
+            setAbcText(e.target.value)
+            setAbcPreview(null)
+          }}
+        />
+        <div className="abc-preview-row">
+          <button
+            type="button"
+            className="btn btn-import"
+            data-testid="abc-preview-btn"
+            disabled={!enabled || abcText.trim() === ''}
+            onClick={() => setAbcPreview(parseAbc(abcText))}
+          >
+            解析预览
+          </button>
+          {abcPreview !== null && abcPreview !== 'fail' && (
+            <span className="studio-hint ok" data-testid="abc-preview-info">
+              「{abcPreview.title}」· {abcPreview.bpi} 拍/小节 · {abcPreview.notes.length} 个音符 · 将移调入键盘范围
+            </span>
+          )}
+          {abcPreview === 'fail' && (
+            <span className="studio-hint err" data-testid="abc-preview-fail">
+              无法解析: 请检查 ABC 格式(需有 M/L/K 头和音符)
+            </span>
+          )}
+          <button
+            type="button"
+            className="btn btn-primary"
+            data-testid="abc-save-btn"
+            disabled={!enabled || abcPreview === null || abcPreview === 'fail'}
+            onClick={() => {
+              if (onImportAbc?.(abcText)) {
+                setAbcPreview(null)
+                setAbcText('')
+              } else {
+                setAbcPreview('fail')
+              }
+            }}
+          >
+            保存为自定义歌曲
+          </button>
+        </div>
       </div>
     </section>
   )

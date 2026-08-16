@@ -39,6 +39,7 @@ import {
   loadCustomSongs,
   saveCustomSongs,
 } from './songs/customSongs'
+import { abcToSong } from './songs/abcParser'
 import StatusPanel, { type ConnState, type Peer } from './ui/StatusPanel'
 import MixerPanel from './ui/MixerPanel'
 import InstrumentPicker from './ui/InstrumentPicker'
@@ -980,6 +981,16 @@ export default function App() {
     return true
   }
 
+  /** 导入 ABC 曲谱(自动解析成钢琴旋律声部并移调);成功返回 true。 */
+  const handleImportAbc = (text: string): boolean => {
+    const song = abcToSong(text)
+    if (song === null) return false
+    const next = [...customSongs, song]
+    setCustomSongs(next)
+    saveCustomSongs(next)
+    return true
+  }
+
   /** 把当前曲目 POST 到服务器换取分享码(Phase 3)。 */
   const handleShareSong = async (): Promise<void> => {
     if (shareSong === null) return
@@ -1438,6 +1449,7 @@ export default function App() {
             recordedCount={recordedCount}
             onSave={handleSaveRecording}
             onImport={handleImportSong}
+            onImportAbc={handleImportAbc}
             exportText={exportText}
             onShare={() => handleShareSong()}
             shareId={shareId}
