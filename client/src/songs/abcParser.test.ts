@@ -117,12 +117,12 @@ describe('abcToSong', () => {
     expect(beats.size).toBe(song!.parts[0]!.notes.length)
   })
 
-  it('transposes a low melody up into the playable range', () => {
-    // 低音区旋律(C3 下方)应被移调上来
+  it('keeps the original pitch faithfully (no transposition)', () => {
+    // 低音区旋律保持原谱音高,不做自动移调
     const lowAbc = 'X:1\nT:Low\nM:4/4\nL:1/4\nK:C\nC, E, G, c |'
     const song = abcToSong(lowAbc)
     expect(song).not.toBeNull()
-    const lo = Math.min(...song!.parts[0]!.notes.map((n) => n.note))
-    expect(lo).toBeGreaterThanOrEqual(48)
+    const notes = song!.parts[0]!.notes.map((n) => n.note)
+    expect(notes).toEqual([48, 52, 55, 72]) // C3 E3 G3 C5 —— 与原谱一致
   })
 })

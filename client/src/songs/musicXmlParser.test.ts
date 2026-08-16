@@ -38,17 +38,14 @@ describe('parseMusicXml', () => {
     expect(r!.voices[1]).toEqual([{ note: 48, beat: 0, duration: 4 }])
   })
 
-  it('transposes into the playable range and produces one part per voice', () => {
+  it('produces one part per voice and keeps the original pitch (faithful)', () => {
     const song = musicXmlToSong(TWO_PART_XML)
     expect(song).not.toBeNull()
     expect(song!.parts).toHaveLength(2)
     expect(song!.bpi).toBe(4)
-    for (const part of song!.parts) {
-      for (const n of part.notes) {
-        expect(n.note).toBeGreaterThanOrEqual(48)
-        expect(n.note).toBeLessThanOrEqual(84)
-      }
-    }
+    // 原谱音高如实保留(C3 起)
+    expect(song!.parts[0]!.notes.map((n) => n.note)).toEqual([60, 64, 67])
+    expect(song!.parts[1]!.notes.map((n) => n.note)).toEqual([48])
   })
 
   it('returns null for non-XML text', () => {

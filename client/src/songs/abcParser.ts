@@ -181,32 +181,19 @@ function abcDurBeats(token: string, lBeats: number): number {
 
 
 /**
- * 多声部音符 → 可保存的 Song(每个声部一个钢琴 part,自动整体移调到可演奏范围)。
- * 移调失败(音域太宽)返回 null。
+ * 多声部音符 → 可保存的 Song(每个声部一个钢琴 part)。
+ * **忠实原谱**: 不做任何移调 —— 原谱什么音高就保存什么音高,
+ * 超出键盘可演奏范围(C3–C5)的音符如实保留(玩家弹不到,但谱面/回放忠实)。
  */
 export function buildSongFromVoices(title: string, bpi: number, voices: SongNote[][], idPrefix = 'abc'): Song | null {
   const allNotes = voices.flat()
   if (allNotes.length === 0) return null
-  const lo = Math.min(...allNotes.map((n) => n.note))
-  const hi = Math.max(...allNotes.map((n) => n.note))
-  if (hi - lo > PLAYABLE_HIGH - PLAYABLE_LOW) return null // 音域过宽
-
-  // 整体移调(所有声部同一 shift,保持相对关系)。
-  // 仅在越界时移动: 低于键盘最低音就上移,高于最高音就下移;
-  // 已在可演奏范围内的旋律**保持原位**(不强行压低到最低音区)。
-  let shift = 0
-  if (lo < PLAYABLE_LOW) {
-    shift = PLAYABLE_LOW - lo
-  } else if (hi > PLAYABLE_HIGH) {
-    shift = PLAYABLE_HIGH - hi
-  }
-  if (lo + shift < PLAYABLE_LOW || hi + shift > PLAYABLE_HIGH) return null
 
   const parts = voices.map((notes, i) => ({
     id: i === 0 ? 'melody' : `part${i + 1}`,
     name: i === 0 ? '旋律' : `声部 ${i + 1}`,
     instrument: 'piano' as const,
-    notes: notes.map((n) => ({ ...n, note: n.note + shift })),
+    notes,
   }))
   return {
     id: `${idPrefix}-${Date.now().toString(36)}`,
@@ -214,6 +201,15 @@ export function buildSongFromVoices(title: string, bpi: number, voices: SongNote
     bpm: 90,
     bpi,
     parts,
+  }
+}
+
+/** 音符序列的音域(最低~最高音名,便于界面提示)。 */
+export function pitchRange(notes: SongNote[]): { lo: number; hi: number } | null {
+  if (notes.length === 0) return null
+  return {
+    lo: Math.min(...notes.map((n) => n.note)),
+    hi: Math.max(...notes.map((n) => n.note)),
   }
 }
 

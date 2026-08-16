@@ -8,7 +8,7 @@
  */
 
 import { useState } from 'react'
-import { parseAbc, type AbcParseResult } from '../songs/abcParser'
+import { parseAbc, pitchRange, type AbcParseResult } from '../songs/abcParser'
 import { parseMusicXml } from '../songs/musicXmlParser'
 
 export interface SongStudioProps {
@@ -300,11 +300,25 @@ export default function SongStudio({
           >
             解析预览
           </button>
-          {abcPreview !== null && abcPreview !== 'fail' && (
-            <span className="studio-hint ok" data-testid="abc-preview-info">
-              「{abcPreview.title}」· {abcPreview.bpi} 拍/小节 · {abcPreview.voices.length} 个声部 · {abcPreview.voices.reduce((s, v) => s + v.length, 0)} 个音符
-            </span>
-          )}
+          {abcPreview !== null && abcPreview !== 'fail' && (() => {
+            const all = abcPreview.voices.flat()
+            const rng = pitchRange(all)
+            const loName = rng === null ? '' : `${['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][rng.lo % 12]}${Math.floor(rng.lo / 12) - 1}`
+            const hiName = rng === null ? '' : `${['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'][rng.hi % 12]}${Math.floor(rng.hi / 12) - 1}`
+            const outOfRange = rng !== null && (rng.lo < 48 || rng.hi > 84)
+            return (
+              <span>
+                <span className="studio-hint ok" data-testid="abc-preview-info">
+                  「{abcPreview.title}」· {abcPreview.bpi} 拍/小节 · {abcPreview.voices.length} 个声部 · {abcPreview.voices.reduce((s, v) => s + v.length, 0)} 个音符 · 音域 {loName}~{hiName}
+                </span>
+                {outOfRange && (
+                  <span className="studio-hint err" data-testid="abc-preview-range-warn">
+                    部分音符超出键盘范围(C3–C5),导入后忠实保留原谱音高
+                  </span>
+                )}
+              </span>
+            )
+          })()}
           {abcPreview === 'fail' && (
             <span className="studio-hint err" data-testid="abc-preview-fail">
               无法解析: 请检查 ABC 格式(需有 M/L/K 头和音符)
