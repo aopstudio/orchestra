@@ -191,11 +191,14 @@ export function buildSongFromVoices(title: string, bpi: number, voices: SongNote
   const hi = Math.max(...allNotes.map((n) => n.note))
   if (hi - lo > PLAYABLE_HIGH - PLAYABLE_LOW) return null // 音域过宽
 
-  // 整体移调(所有声部同一 shift,保持相对关系)
+  // 整体移调(所有声部同一 shift,保持相对关系)。
+  // 仅在越界时移动: 低于键盘最低音就上移,高于最高音就下移;
+  // 已在可演奏范围内的旋律**保持原位**(不强行压低到最低音区)。
   let shift = 0
-  for (let s = PLAYABLE_LOW - lo; s <= PLAYABLE_HIGH - hi; s += 1) {
-    shift = s
-    break
+  if (lo < PLAYABLE_LOW) {
+    shift = PLAYABLE_LOW - lo
+  } else if (hi > PLAYABLE_HIGH) {
+    shift = PLAYABLE_HIGH - hi
   }
   if (lo + shift < PLAYABLE_LOW || hi + shift > PLAYABLE_HIGH) return null
 
