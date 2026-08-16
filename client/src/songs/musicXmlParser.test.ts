@@ -30,7 +30,7 @@ describe('parseMusicXml', () => {
     expect(r!.title).toBe('Duet Test')
     expect(r!.bpi).toBe(4)
     expect(r!.voices).toHaveLength(2)
-    expect(r!.voices[0]).toEqual([
+    expect(r!.voices[0]!).toEqual([
       { note: 60, beat: 0, duration: 1 },
       { note: 64, beat: 1, duration: 1 },
       { note: 67, beat: 2, duration: 2 },
@@ -46,6 +46,31 @@ describe('parseMusicXml', () => {
     // 原谱音高如实保留(C3 起)
     expect(song!.parts[0]!.notes.map((n) => n.note)).toEqual([60, 64, 67])
     expect(song!.parts[1]!.notes.map((n) => n.note)).toEqual([48])
+  })
+
+  it('merges <chord/> notes into the previous note (lowest pitch, no overlap)', () => {
+    const xml = `<?xml version="1.0"?>
+<score-partwise version="3.0">
+  <work><work-title>Chord</work-title></work>
+  <part id="P1"><measure number="1">
+    <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+    <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration></note>
+    <note><chord/><pitch><step>E</step><octave>4</octave></pitch><duration>2</duration></note>
+    <note><chord/><pitch><step>G</step><octave>4</octave></pitch><duration>2</duration></note>
+    <note><pitch><step>F</step><octave>4</octave></pitch><duration>2</duration></note>
+    <note><chord/><pitch><step>A</step><octave>3</octave></pitch><duration>2</duration></note>
+  </measure></part>
+</score-partwise>`
+    const r = parseMusicXml(xml)
+    expect(r).not.toBeNull()
+    // C 和弦三音合并为 C4(60,最低);下一音 F4 在 beat 2;F 和弦取最低 A3(57)
+    expect(r!.voices[0]!).toEqual([
+      { note: 60, beat: 0, duration: 2 },
+      { note: 57, beat: 2, duration: 2 },
+    ])
+    // 同拍不重叠(每 beat 至多一个音)
+    const beats = new Set(r!.voices[0]!.map((n) => n.beat))
+    expect(beats.size).toBe(r!.voices[0]!.length)
   })
 
   it('returns null for non-XML text', () => {

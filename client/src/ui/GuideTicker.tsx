@@ -82,8 +82,21 @@ export default function GuideTicker({
   const prepBeatsRef = useRef(prepBeats)
   const totalBeats = useMemo(() => totalBeatsOf(notes), [notes])
   const totalBeatsRef = useRef(totalBeats)
-  // 鼓声部用更宽的拍格(鼓名 2 字完整显示);旋律声部保持紧凑。
-  const beatPx = isDrums ? DRUM_BEAT_PX : BEAT_PX
+  // 相邻音符的最短拍距(导入谱常有八分/十六分密集音符): 若固定拍格宽,
+  // 短时值音符的格子间距会小于格子宽度,前后音符重叠。按最短拍距动态加宽拍格,
+  // 保证最小间距 >= 格子最小宽(18px),鼓声部保持更宽拍格显示鼓名。
+  const minBeatGap = useMemo(() => {
+    let gap = Number.POSITIVE_INFINITY
+    const sorted = [...notes].sort((a, b) => a.beat - b.beat)
+    for (let i = 1; i < sorted.length; i += 1) {
+      const g = sorted[i]!.beat - sorted[i - 1]!.beat
+      if (g > 0 && g < gap) gap = g
+    }
+    return gap === Number.POSITIVE_INFINITY ? 1 : gap
+  }, [notes])
+  const beatPx = isDrums
+    ? DRUM_BEAT_PX
+    : Math.max(BEAT_PX, Math.ceil(MIN_CELL_PX / minBeatGap))
   const minCellPx = isDrums ? DRUM_MIN_CELL_PX : MIN_CELL_PX
   const beatPxRef = useRef(beatPx)
   // 同拍音符分组(鼓声部同一拍常有 踩镲+底鼓/军鼓 两个鼓件):

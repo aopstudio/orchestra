@@ -43,17 +43,30 @@ export function parseMusicXml(xmlText: string): AbcParseResult | null {
     const partBody = pm[1] ?? ''
     const notes: SongNote[] = []
     let beat = 0
+    let currentBeat = 0 // 当前"进行中"音符的拍位(和弦音与之同拍)
     for (const nm of partBody.matchAll(/<note>([\s\S]*?)<\/note>/g)) {
       const block = nm[1] ?? ''
       const pitch = block.match(/<pitch>\s*<step>([A-G])<\/step>(?:\s*<alter>(-?\d+)<\/alter>)?\s*<octave>(\d+)<\/octave>/)
       const durMatch = block.match(/<duration>(\d+)<\/duration>/)
       const durDiv = durMatch ? Number(durMatch[1]) : 0
       const durBeats = durDiv / beatInDivisions
+      // 和弦音(<chord/> 标记)与前一音同时发音: 不推进拍位,与同拍已有音取音高最低者合并
+      const isChord = block.includes('<chord/>') || block.includes('<chord />')
       if (pitch) {
         const midi = nameToMidi(pitch[1] ?? 'C', pitch[2] ? Number(pitch[2]) : 0, pitch[3] ? Number(pitch[3]) : 4)
-        notes.push({ note: midi, beat, duration: Math.max(durBeats, 0.001) })
+        if (isChord) {
+          const last = notes[notes.length - 1]
+          if (last !== undefined && last.beat === currentBeat) {
+            if (midi < last.note) last.note = midi // 取最低音,不新增重叠音符
+          } else {
+            notes.push({ note: midi, beat: currentBeat, duration: Math.max(durBeats, 0.001) })
+          }
+        } else {
+          currentBeat = beat
+          notes.push({ note: midi, beat, duration: Math.max(durBeats, 0.001) })
+        }
       }
-      beat += durBeats
+      if (!isChord) beat += durBeats
     }
     if (notes.length > 0) voices.push(notes)
   }
